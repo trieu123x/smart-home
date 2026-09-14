@@ -1,0 +1,39 @@
+# Normalize text files in the repository
+* text=auto
+
+# Source / web files: use LF in Git
+*.py      text eol=lf
+*.html    text eol=lf
+*.css     text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+
+# Windows scripts should use CRLF
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# Binary model files
+*.pt      binary
+*.pth     binary
+*.onnx    binary
+
+# Binary media files
+*.mp4     binary
+*.avi     binary
+*.mov     binary
+*.mkv     binary
+*.webm    binary
+*.m4v     binary
+
+# Binary images
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.webp    binary
+*.ico     binary

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anti-Theft IoT AI - V3</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">IoT · CNN + BiLSTM · UCF-Crime</p>
+        <h1>Anti-Theft Video Analyzer</h1>
+        <p class="sub">Model V3 · threshold khuyến nghị 40% · 16 frame/window</p>
+      </div>
+      <div class="model-chip">
+        <span class="dot"></span>
+        <div><b>Model ready</b><small>Epoch {{ model_epoch }} · {{ device }}</small></div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="panel upload-panel">
+        <div class="section-title">
+          <div>
+            <span class="step">01</span>
+            <h2>Video đầu vào</h2>
+          </div>
+          <span class="recommended">V3</span>
+        </div>
+
+        <label class="dropzone" id="dropzone" for="videoInput">
+          <input id="videoInput" type="file" accept="video/*" hidden />
+          <div class="upload-icon">↥</div>
+          <strong id="dropTitle">Chọn hoặc kéo video vào đây</strong>
+          <span>MP4 · AVI · MOV · MKV · WEBM</span>
+        </label>
+
+        <div class="video-box hidden" id="videoBox">
+          <video id="preview" controls></video>
+          <div class="video-name" id="videoName"></div>
+        </div>
+
+        <div class="settings">
+          <label>
+            <span>Frame step</span>
+            <input id="frameStep" type="number" min="1" max="60" value="10" />
+            <small>Khớp train: lấy mỗi 10 frame gốc, sau đó mô phỏng frame UCF-Crime 64×64.</small>
+          </label>
+          <label>
+            <span>Window stride</span>
+            <input id="windowStride" type="number" min="1" max="64" value="8" />
+            <small>8 = overlap khoảng 50% giữa các window.</small>
+          </label>
+        </div>
+
+        <label class="threshold-control">
+          <div>
+            <span>Ngưỡng cảnh báo</span>
+            <strong id="thresholdValue">40%</strong>
+          </div>
+          <input id="threshold" type="range" min="5" max="95" step="1" value="40" />
+          <small>Test V3: 40% → Precision 92.31%, Recall 80% trên bộ 25 video đã kiểm tra.</small>
+        </label>
+
+        <button id="analyzeBtn" class="primary" disabled>Phân tích video</button>
+        <div id="progress" class="progress hidden">
+          <div class="spinner"></div>
+          <div><b>Đang chạy inference...</b><span>Thời gian phụ thuộc độ dài video và GPU/CPU.</span></div>
+        </div>
+        <div id="errorBox" class="error hidden"></div>
+      </div>
+
+      <div class="panel result-panel">
+        <div class="section-title">
+          <div>
+            <span class="step">02</span>
+            <h2>Kết quả phân tích</h2>
+          </div>
+          <span id="resultBadge" class="badge neutral">CHƯA PHÂN TÍCH</span>
+        </div>
+
+        <div class="hero-result">
+          <div>
+            <span>Trạng thái</span>
+            <strong id="statusText">—</strong>
+          </div>
+          <div class="max-box">
+            <span>Max intrusion</span>
+            <strong id="maxIntrusion">—</strong>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div><span>Average intrusion</span><strong id="avgIntrusion">—</strong></div>
+          <div><span>Alert windows</span><strong id="alertWindows">—</strong></div>
+          <div><span>Total windows</span><strong id="totalWindows">—</strong></div>
+          <div><span>Threshold</span><strong id="usedThreshold">40%</strong></div>
+        </div>
+
+        <div class="timeline-head">
+          <div>
+            <h3>Timeline</h3>
+            <p>Xác suất Intrusion theo từng cửa sổ. Bấm một dòng hoặc biểu đồ để tua video tới đúng thời điểm.</p>
+          </div>
+          <div class="legend"><i></i> Intrusion probability</div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="timelineCanvas"></canvas>
+          <div id="emptyChart" class="empty-chart">Timeline sẽ xuất hiện sau khi phân tích.</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Normal</th>
+                <th>Intrusion</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="resultRows">
+              <tr><td colspan="4" class="empty-cell">Chưa có dữ liệu</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
