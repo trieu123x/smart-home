@@ -1,4 +1,5 @@
 """Regression tests: FallGuard only calls the EXISTING /gateway/v1/notify API."""
+import base64
 import io
 import json
 import os
@@ -60,7 +61,7 @@ def test_notification_matches_deployed_gateway_contract(monkeypatch):
     }]
     assert 'chat_id' not in json.dumps(output)
     assert 'bot_token' not in json.dumps(output).lower()
-    assert 'photo_b64' not in json.dumps(output)
+    assert 'image_base64' not in json.dumps(output)
 
 
 def test_invalid_config_and_http_only_refused(monkeypatch):
@@ -108,3 +109,26 @@ def test_rejects_embedded_credentials_in_gateway_url(monkeypatch):
     assert not client.is_configured()
     with pytest.raises(client.TelegramError, match='TELEGRAM_GATEWAY_URL'):
         client.send_notification(title='Test', message='Test')
+
+
+def test_jpeg_photo_sent_as_base64_with_alert(monkeypatch):
+    output = []
+    class PhotoOpener(Opener):
+        def __init__(self, output):
+            super().__init__(output, Response({'ok': True, 'sent': 3, 'failed': 0, 'duplicate': False, 'photo': True}))
+    monkeypatch.setattr(client.urllib.request, 'build_opener', lambda *_: PhotoOpener(output))
+    photo = b'\xff\xd8\xff' + b'jpeg-bits' + b'\xff\xd9'
+    result = client.send_notification(title='FallGuard', message='Ngã', level='critical',
+                                      event_id='fallguard-123', image_jpeg=photo)
+    assert result['photo'] is True
+    assert result['sent'] is True
+    assert base64.b64decode(output[0]['image_base64']) == photo
+    assert output[0]['event_id'] == 'fallguard-123'
+
+
+def test_gw_old_version_must_not_silently_downgrade_to_text(monkeypatch):
+    output = []
+    monkeypatch.setattr(client.urllib.request, 'build_opener', lambda *_: Opener(output))
+    photo = b'\xff\xd8\xff' + b'jpeg-bits' + b'\xff\xd9'
+    with pytest.raises(client.TelegramError, match='chưa xác nhận gửi ảnh'):
+        client.send_notification(title='FallGuard', message='Ngã', image_jpeg=photo)

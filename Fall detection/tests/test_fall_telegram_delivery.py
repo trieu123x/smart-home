@@ -94,6 +94,9 @@ def test_automatic_delivery_retries_after_person_disappears(monkeypatch):
         assert result['camera']['telegram_detail'].endswith('2 người.')
         assert len(sent) == 2
         assert sent[0]['event_id'] == sent[1]['event_id'], 'retry must reuse same idempotency key'
+        assert sent[0]['image_jpeg'] == sent[1]['image_jpeg'], 'retry must reuse confirmed fall frame'
+        assert sent[0]['image_jpeg'].startswith(b'\xff\xd8\xff')
+        assert sent[0]['image_jpeg'].endswith(b'\xff\xd9')
 
 
 def test_gateway_error_visible_to_authenticated_dashboard(monkeypatch):

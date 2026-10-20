@@ -46,6 +46,35 @@ class AlertPayload(BaseModel):
     event_id: str | None = Field(default=None, max_length=128, pattern=r'^[A-Za-z0-9][A-Za-z0-9._:-]*$')
 
 
+def make_fall_snapshot(image_base64: str, track: dict) -> bytes:
+    """Freeze the actual confirmed-fall frame; highlight the detected person."""
+    import numpy as np
+
+    original = base64.b64decode(image_base64, validate=True)
+    image = cv2.imdecode(np.frombuffer(original, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError('Fall snapshot cannot be decoded')
+    height, width = image.shape[:2]
+    box = track.get('box')
+    if box and len(box) == 4:
+        # Detector returns normalized xyxy boxes; clamp to visible pixels.
+        x1, y1, x2, y2 = [float(v) for v in box]
+        x1, x2 = sorted((x1, x2))
+        y1, y2 = sorted((y1, y2))
+        a = (max(0, min(width - 1, int(x1 * width))),
+             max(0, min(height - 1, int(y1 * height))))
+        b = (max(0, min(width - 1, int(x2 * width))),
+             max(0, min(height - 1, int(y2 * height))))
+        cv2.rectangle(image, a, b, (0, 0, 255), 3)
+        cv2.putText(image, f"FALL  ID {track['id']}", (a[0], max(20, a[1] - 8)),
+                    cv2.FONT_HERSHEY_SIMPLEX, .65, (0, 0, 255), 2)
+    for quality in (78, 65, 50):
+        ok, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, quality])
+        if ok and len(jpeg) <= 2_000_000:
+            return jpeg.tobytes()
+    raise ValueError('Fall snapshot exceeds 2 MB')
+
+
 def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=None):
     camera_error = None
     if camera_settings is None:
@@ -191,7 +220,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
             # The user is already authenticated; show the safe, sanitized reason.
             raise HTTPException(502, detail) from None
 
-    async def deliver_alert(payload: AlertPayload, source='Camera thiết bị'):
+    async def deliver_alert(payload: AlertPayload, source='Camera thiết bị', image_jpeg=None):
         if not telegram_configured():
             return {'sent': False, 'reason': 'not_configured'}
         cooldown = max(15, int(ALERT_COOLDOWN_SECONDS or 60))
@@ -222,6 +251,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                 result = await asyncio.to_thread(
                     send_notification, title='FALLGUARD - CẢNH BÁO TÉ NGÃ',
                     message=body, level='critical', event_id=event_id,
+                    image_jpeg=image_jpeg,
                 )
             except Exception as exc:
                 detail = str(exc) if isinstance(exc, TelegramError) else 'Lỗi kết nối Telegram Gateway.'
@@ -311,7 +341,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
         # lose the person. Previously retries were tied to continuously tracked boxes.
         notification_jobs = {}
 
-        async def notify(track, alert_event, session_id):
+        async def notify(track, alert_event, session_id, image_jpeg):
             # Keep one idempotency key for the whole job, including all retries.
             event_key = 'fallguard-' + uuid.uuid4().hex
             for attempt in range(1, 4):
@@ -325,11 +355,11 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                         person_id=track['id'], score=track['fall_score'],
                         confirmations=camera_settings.confirmations,
                         session_id=session_id, event_id=event_key,
-                    ), camera_settings.name)
+                    ), camera_settings.name, image_jpeg=image_jpeg)
                     if result.get('sent'):
                         count = result.get('recipients', 0)
                         app.state.cctv_telegram = 'sent'
-                        app.state.cctv_telegram_detail = f'Đã gửi cảnh báo ngã đến {count} người.'
+                        app.state.cctv_telegram_detail = f'Đã gửi cảnh báo ngã kèm ảnh đến {count} người.'
                         alert_event['telegram'] = 'sent'
                         return
                     reason = result.get('reason')
@@ -425,7 +455,12 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                     # The worker retries independently of future video frames.
                     key = (status['epoch'], generation, track['id'])
                     if key not in notification_jobs or notification_jobs[key].done():
-                        task = asyncio.create_task(notify(dict(track), event, app.state.cctv_session))
+                        try:
+                            snapshot_jpeg = await asyncio.to_thread(make_fall_snapshot, image, track)
+                        except Exception:
+                            logging.exception('Cannot create fall snapshot; falling back to dashboard JPEG')
+                            snapshot_jpeg = base64.b64decode(image)
+                        task = asyncio.create_task(notify(dict(track), event, app.state.cctv_session, snapshot_jpeg))
                         notification_jobs[key] = task
                         app.state.cctv_alert_tasks.add(task)
                         task.add_done_callback(app.state.cctv_alert_tasks.discard)

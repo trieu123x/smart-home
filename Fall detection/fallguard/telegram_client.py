@@ -3,6 +3,7 @@
 FallGuard NEVER stores or uses Telegram bot tokens, chat IDs or Supabase credentials.
 The Vercel bot provides POST /gateway/v1/notify with X-Gateway-Key.
 """
+import base64
 import json
 import urllib.error
 import urllib.parse
@@ -44,11 +45,11 @@ def is_configured():
     return len(GATEWAY_API_KEY) >= 24 and not any(c.isspace() for c in GATEWAY_API_KEY)
 
 
-def send_notification(*, title, message, level='info', event_id=None):
+def send_notification(*, title, message, level='info', event_id=None, image_jpeg=None):
     """Submit one notification; the gateway broadcasts to all /start subscribers.
 
     Returns parsed gateway stats; raises TelegramError for authorization, transport,
-    no subscribers, or partial delivery. Only JSON text is supported by this gateway.
+    no subscribers, or partial delivery. A JPEG snapshot may be attached.
     """
     endpoint = _gateway_endpoint()
     if not is_configured():
@@ -62,6 +63,12 @@ def send_notification(*, title, message, level='info', event_id=None):
     payload = {'title': title.strip(), 'message': message.strip(), 'level': level}
     if event_id is not None:
         payload['event_id'] = event_id
+    if image_jpeg is not None:
+        if (not isinstance(image_jpeg, bytes) or len(image_jpeg) > 2_000_000
+                or not image_jpeg.startswith(b'\xff\xd8\xff')
+                or not image_jpeg.endswith(b'\xff\xd9')):
+            raise TelegramError('Ảnh cảnh báo phải là JPEG hợp lệ, tối đa 2 MB.')
+        payload['image_base64'] = base64.b64encode(image_jpeg).decode('ascii')
     data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
     request = urllib.request.Request(endpoint, data=data, headers={
         'X-Gateway-Key': GATEWAY_API_KEY,
@@ -80,7 +87,7 @@ def send_notification(*, title, message, level='info', event_id=None):
         if exc.code == 404:
             raise TelegramError('Không tìm thấy /gateway/v1/notify. Hãy deploy bản Telegram Gateway mới trên Vercel.') from None
         if exc.code == 422:
-            raise TelegramError('Gateway từ chối định dạng dữ liệu cảnh báo (HTTP 422).') from None
+            raise TelegramError('Gateway từ chối định dạng cảnh báo (HTTP 422). Nếu gửi kèm ảnh, hãy cập nhật Telegram-bot Gateway trên Vercel trước.') from None
         if exc.code in (429, 503, 504):
             raise TelegramError(f'Gateway đang bận/không khả dụng (HTTP {exc.code}).') from None
         raise TelegramError(f'Gateway báo HTTP {exc.code}.') from None
@@ -96,4 +103,6 @@ def send_notification(*, title, message, level='info', event_id=None):
     sent = result.get('sent', 0)
     if not isinstance(sent, int) or isinstance(sent, bool) or sent < 1:
         raise TelegramError('Gateway chưa gửi đến ai. Hãy kiểm tra người dùng đã /start trong bot Telegram.')
-    return {'sent': True, 'recipients': sent, 'gateway': result}
+    if image_jpeg is not None and result.get('photo') is not True:
+        raise TelegramError('Gateway chưa xác nhận gửi ảnh. Hãy cập nhật Gateway trên Vercel trước khi thử lại.')
+    return {'sent': True, 'recipients': sent, 'photo': result.get('photo') is True, 'gateway': result}
