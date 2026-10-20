@@ -1,0 +1,81 @@
+# Private settings and credentials (commit .env.example only)
+.env
+.env.*
+!.env.example
+/mediamtx.yml
+/LARIX_CONNECTION.txt
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.keystore
+*.jks
+
+# Python environments, caches, tests and packaging output
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.hypothesis/
+.coverage*
+htmlcov/
+coverage.xml
+*.egg-info/
+build/
+dist/
+
+# Local AI models and exported weights (not included in GitHub repo)
+/models/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
+*.ckpt
+*.tflite
+*.h5
+*.weights
+
+# MediaMTX binary and other downloaded tools
+/tools/
+
+# Camera footage, snapshots and runtime data
+/media/
+/recordings/
+/captures/
+/snapshots/
+/data/
+/logs/
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+*.flv
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.log
+*.log.*
+
+# Local backups and temporary files
+_backup_legacy/
+*.backup.*
+*.bak
+*.orig
+*~
+
+# Editor / operating system files
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini

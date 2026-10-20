@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101e2a"><title>Đăng nhập · FallGuard</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/login.css">
+<script src="/static/login.js" defer></script>
+</head>
+<body class="auth-page">
+<main class="auth-card">
+  <div class="app-brand"><span class="brand-mark">⌁</span><span>Fall<span class="accent">Guard</span></span></div>
+  <div class="eyebrow">CAMERA CCTV · PRIVATE ACCESS</div>
+  <h1>Đăng nhập hệ thống</h1>
+  <p>Đăng nhập để giám sát, điều khiển AI và quản lý camera từ xa.</p>
+  <form id="loginForm">
+    <label for="password">Mật khẩu quản trị</label>
+    <input id="password" type="password" autocomplete="current-password" minlength="1" required placeholder="Nhập mật khẩu trong .env">
+    <button id="submit" type="submit">Đăng nhập <span>→</span></button>
+  </form>
+  <div class="notice" id="notice" role="status" hidden></div>
+  <p class="fine">HTTPS được khuyến nghị khi truy cập ngoài Internet. Không chia sẻ mật khẩu hoặc đường dẫn quản trị công khai.</p>
+</main>
+</body>
+</html>

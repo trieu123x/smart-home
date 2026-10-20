@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101e2a"><title>FallGuard · Camera giám sát</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/"><span class="brand-icon">⌁</span> Fall<span>Guard</span><small>CAMERA AI</small></a><div class="server-pill"><i id="serverDot"></i><span id="serverState">Đang kết nối</span></div></header>
+<main>
+  <div class="heading"><div><div class="eyebrow">GIÁM SÁT CAMERA TỪ XA</div><h1>Theo dõi té ngã<span>.</span></h1><p>Camera điện thoại chỉ quay và truyền hình bằng Streamlabs / Larix. Máy tính chạy YOLO GPU và xác nhận tư thế ngã liên tục trong 5 giây trước khi cảnh báo.</p></div></div>
+  <div id="message" class="message" role="status" hidden></div>
+  <div class="layout">
+    <section class="camera-card">
+      <div class="card-top"><div><span class="dot" id="cameraDot"></span><strong id="cameraTitle">Camera chưa kết nối</strong></div><span class="small-chip">CAMERA IP / LARIX</span></div>
+      <div class="source-controls"><div class="connection-line"><strong id="cctvName">FallGuard Camera</strong><span id="cctvState">Chưa kết nối</span></div><p id="cctvHelp">Điện thoại phát video bằng Streamlabs / Larix, không cần mở trình duyệt hoặc chạy AI.</p></div>
+      <div class="viewport" id="viewport">
+        <img id="cctvImage" alt="Hình ảnh trực tiếp từ camera" hidden>
+        <canvas id="output" aria-label="Khung nhận diện AI" hidden></canvas>
+        <button id="closeFullscreen" class="close-fullscreen" type="button">✕ Thu nhỏ</button>
+        <div class="empty-camera" id="emptyCamera"><div class="camera-symbol"><svg viewBox="0 0 48 48" fill="none"><rect x="7" y="12" width="34" height="27" rx="6"/><circle cx="24" cy="25" r="7"/><path d="M16 12l3-5h10l3 5"/></svg></div><h2>Chưa có tín hiệu video</h2><p>Bật phát hình trên ứng dụng camera và nhấn Kết nối camera.</p><span class="permission-note">Thiết bị phát và website hoạt động độc lập</span></div>
+        <div class="frame-tag" id="frameTag" hidden><span class="dot"></span><span id="frameText">Đang xem...</span></div>
+        <div id="alertBanner" class="alert-banner" role="alert" hidden><b>⚠ ĐÃ XÁC NHẬN NGÃ SAU 5 GIÂY</b><span>Hãy kiểm tra người trong khung hình.</span><button id="acknowledge" type="button">Tắt tiếng lần này</button></div>
+      </div>
+      <div class="camera-toolbar"><button class="primary" id="start">▶ Kết nối camera</button><button class="secondary" id="stop" disabled>■ Ngắt kết nối</button><button class="icon-button" id="fullscreenCamera" disabled>⛶ <span>Phóng to</span></button></div>
+      <div class="camera-foot"><span>● <span id="feedState">Chưa có hình ảnh</span></span><span id="frameAge">AI xử lý tại máy tính server</span></div>
+    </section>
+    <aside class="side-panel">
+      <section class="status-card"><div class="section-label">TRẠNG THÁI NHẬN DIỆN</div><div id="statusIcon" class="status-icon">◌</div><h2 id="statusTitle">Đang chờ camera</h2><p id="statusDescription">Xem trực tiếp không yêu cầu bật AI.</p><div class="metrics"><div><b id="peopleCount">—</b><span>Người trong hình</span></div></div></section>
+      <section class="settings-card"><div class="section-heading"><h2>Điều khiển AI</h2><span>⚙</span></div>
+        <div class="analysis-row"><label for="aiAnalysis">Phân tích AI / cảnh báo ngã</label><input id="aiAnalysis" type="checkbox"><span id="aiAnalysisText">AI đã tắt</span></div>
+        <p class="hint">Chỉ thay đổi xử lý trên máy tính, không ngắt video từ điện thoại.</p>
+        <div class="static-setting"><span>Thời gian xác nhận ngã</span><strong>5 giây liên tục</strong></div>
+        <div class="static-setting"><span>Ngưỡng nhận diện ngã</span><strong id="thresholdValue">40%</strong></div>
+        <div class="static-setting"><span>Điều kiện bổ sung</span><strong id="confirmFrames">3 lần nhận diện</strong></div>
+        <label class="toggle-line" for="sound"><span>Âm thanh cảnh báo</span><input type="checkbox" id="sound" checked><span class="toggle" aria-hidden="true"></span></label>
+        <button id="testSound" class="text-button">♫ Thử tiếng cảnh báo</button>
+        <div class="telegram-line"><span>Telegram Gateway</span><b id="telegramState">Chưa kết nối</b></div>
+        <p class="hint" id="telegramDetail" role="status" aria-live="polite"></p>
+        <button id="testTelegram" class="text-button">✈ Gửi thử Telegram</button>
+      </section>
+    </aside>
+  </div>
+  <section class="events-card"><div class="events-header"><div><h2>Lịch sử cảnh báo <span id="eventCount">0</span></h2><p>Các sự kiện đã xác nhận trong phiên server.</p></div></div><div id="eventsEmpty" class="events-empty"><span>✓</span> Chưa có cảnh báo.</div><ol id="events" class="events"></ol></section>
+  <details class="guide"><summary>Hướng dẫn sử dụng <span>＋</span></summary><div><p><b>1.</b> Khởi chạy MediaMTX, FallGuard và Tailscale Funnel trên máy tính.</p><p><b>2.</b> Mở Streamlabs hoặc Larix trên điện thoại, nhập URL RTMPS, bật truyền hình.</p><p><b>3.</b> Trên website nhấn Kết nối camera và tùy chọn bật AI; khi nằm/ngã liên tục ít nhất 5 giây mới xác nhận cảnh báo.</p><p><b>Lưu ý:</b> Đóng website không dừng camera và không tắt AI đang chạy trên server. Tắt công tắc AI không dừng luồng video.</p></div></details>
+  <footer><span class="footer-brand">FallGuard</span><p>Phát hiện ngã bằng AI có thể báo nhầm hoặc bỏ sót. Kiểm tra trực tiếp khi có cảnh báo.</p></footer>
+</main>
+</body></html>
