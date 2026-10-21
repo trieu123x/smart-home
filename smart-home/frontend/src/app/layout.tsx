@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { DashboardProvider } from "@/components/DashboardProvider";
 import { FallAlertBanner } from "@/components/FallAlertBanner";
+import { GasAlertBanner } from "@/components/GasAlertBanner";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar />
               <FallAlertBanner />
+              <GasAlertBanner />
               <main className="flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">{children}</main>
             </div>
           </div>

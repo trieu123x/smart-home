@@ -1,10 +1,13 @@
 import type {
   ActivityBucket,
   Automation,
+  ControlKey,
   Device,
+  LiveState,
   MetricSeries,
   SmartEvent,
   Summary,
+  SystemMode,
 } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -18,14 +21,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     cache: "no-store",
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`${response.status} ${detail.slice(0, 200)}`);
+    const text = await response.text();
+    // Backend trả {"detail": "..."} -> hiện nguyên văn câu thông báo cho người dùng
+    try {
+      const parsed = JSON.parse(text) as { detail?: unknown };
+      if (typeof parsed.detail === "string") throw new Error(parsed.detail);
+    } catch (err) {
+      if (err instanceof Error && !(err instanceof SyntaxError)) throw err;
+    }
+    throw new Error(`${response.status} ${text.slice(0, 200)}`);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
 export const api = {
+  live: () => request<LiveState>("/api/live"),
+  setMode: (mode: SystemMode) =>
+    request<LiveState>("/api/mode", { method: "POST", body: JSON.stringify({ mode }) }),
+  sendCommand: (device: ControlKey, state: boolean) =>
+    request<{ ok: boolean }>("/api/command", {
+      method: "POST",
+      body: JSON.stringify({ device, state }),
+    }),
   summary: () => request<Summary>("/api/summary"),
   devices: () => request<Device[]>("/api/devices"),
   events: (limit = 30) => request<SmartEvent[]>(`/api/events?limit=${limit}`),

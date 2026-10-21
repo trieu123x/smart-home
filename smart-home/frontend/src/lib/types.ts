@@ -68,8 +68,44 @@ export interface ActivityBucket {
   automation: number;
 }
 
+export type SystemMode = "auto" | "manual";
+export type ControlKey = "light" | "fan" | "buzzer";
+
+/** JSON cảm biến ESP32 gửi qua MQTT (cùng định dạng với bản Django). */
+export interface LiveSensors {
+  ldr?: number;
+  dark?: boolean;
+  temp?: number;
+  hum?: number;
+  gas?: number;
+  gas_alarm?: boolean;
+  motion?: boolean;
+  mode?: SystemMode;
+  light?: boolean;
+  fan?: boolean;
+  buzzer?: boolean;
+}
+
+/** Trạng thái trực tiếp từ ESP32: cảm biến mới nhất + chế độ + trạng thái kết nối. */
+export interface LiveState {
+  sensors: LiveSensors;
+  mode: SystemMode;
+  esp_online: boolean;
+  broker_ok: boolean;
+  age: number | null;
+}
+
+/** Mã thiết bị do ESP32 quản lý qua MQTT (khớp backend/app/bridge_devices.py). */
+export const MQTT_DEVICE_CODES: Record<string, ControlKey | "sensor"> = {
+  "esp32-main": "sensor",
+  "light-main": "light",
+  "fan-main": "fan",
+  "buzzer-main": "buzzer",
+};
+
 /** Tin nhắn realtime backend đẩy qua WebSocket. */
 export type RealtimeMessage =
+  | { type: "live"; data: LiveState }
   | { type: "device"; data: Device }
   | { type: "event"; data: SmartEvent }
   | { type: "reading"; data: { device_id: number; device_code: string; metric: string; value: number; ts: string } }

@@ -15,14 +15,19 @@ import { WS_URL, api } from "@/lib/api";
 import type {
   ActivityBucket,
   Automation,
+  ControlKey,
   Device,
+  LiveState,
   MetricSeries,
   RealtimeMessage,
   SmartEvent,
   Summary,
+  SystemMode,
 } from "@/lib/types";
 
 interface DashboardState {
+  /** Cảm biến + chế độ + kết nối của ESP32 (qua MQTT), cập nhật realtime. */
+  live: LiveState | null;
   summary: Summary | null;
   devices: Device[];
   events: SmartEvent[];
@@ -35,6 +40,8 @@ interface DashboardState {
   /** Cảnh báo ngã mới nhất chưa được xác nhận - hiện banner đỏ toàn trang. */
   activeFall: SmartEvent | null;
   refresh: () => Promise<void>;
+  setMode: (mode: SystemMode) => Promise<void>;
+  sendCommand: (device: ControlKey, state: boolean) => Promise<void>;
   toggleDevice: (device: Device, state: boolean) => Promise<void>;
   setAutoMode: (device: Device, autoMode: boolean) => Promise<void>;
   ackEvent: (id: number) => Promise<void>;
@@ -44,6 +51,7 @@ interface DashboardState {
 const DashboardContext = createContext<DashboardState | null>(null);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
+  const [live, setLive] = useState<LiveState | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [events, setEvents] = useState<SmartEvent[]>([]);
@@ -58,15 +66,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [summaryData, deviceList, eventList, automationList, seriesData, activityData] =
-        await Promise.all([
-          api.summary(),
-          api.devices(),
-          api.events(40),
-          api.automations(),
-          api.series("temperature,humidity,lux", 12, 80),
-          api.activity(24),
-        ]);
+      const [
+        summaryData,
+        deviceList,
+        eventList,
+        automationList,
+        seriesData,
+        activityData,
+        liveData,
+      ] = await Promise.all([
+        api.summary(),
+        api.devices(),
+        api.events(40),
+        api.automations(),
+        api.series("temperature,humidity,ldr,gas", 12, 80),
+        api.activity(24),
+        api.live(),
+      ]);
+      setLive(liveData);
       setSummary(summaryData);
       setDevices(deviceList);
       setEvents(eventList);
@@ -102,11 +119,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const connect = () => {
       socket = new WebSocket(WS_URL);
 
-      socket.onopen = () => setConnected(true);
+      socket.onopen = () => {
+        setConnected(true);
+        // Đồng bộ lại trạng thái ESP32 sau khi (tái) kết nối WebSocket
+        api.live().then(setLive).catch(() => undefined);
+      };
 
       socket.onmessage = (raw) => {
         const message = JSON.parse(raw.data as string) as RealtimeMessage;
-        if (message.type === "device") {
+        if (message.type === "live") {
+          setLive(message.data);
+        } else if (message.type === "device") {
           const incoming = message.data;
           setDevices((current) =>
             current.some((item) => item.id === incoming.id)
@@ -152,12 +175,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     };
   }, [scheduleRefresh]);
 
+  const setMode = useCallback(async (mode: SystemMode) => {
+    const updated = await api.setMode(mode);
+    setLive(updated);
+  }, []);
+
+  const sendCommand = useCallback(async (device: ControlKey, state: boolean) => {
+    await api.sendCommand(device, state);
+  }, []);
+
   const toggleDevice = useCallback(async (device: Device, state: boolean) => {
     setDevices((current) =>
       current.map((item) => (item.id === device.id ? { ...item, state } : item)),
     );
-    const updated = await api.toggleDevice(device.id, state);
-    setDevices((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    try {
+      const updated = await api.toggleDevice(device.id, state);
+      setDevices((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err) {
+      // Lệnh bị từ chối (vd: đang ở chế độ tự động) -> trả công tắc về trạng thái cũ
+      setDevices((current) =>
+        current.map((item) => (item.id === device.id ? { ...item, state: device.state } : item)),
+      );
+      throw err;
+    }
   }, []);
 
   const setAutoMode = useCallback(async (device: Device, autoMode: boolean) => {
@@ -187,6 +227,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   );
 
   const value: DashboardState = {
+    live,
     summary,
     devices,
     events,
@@ -198,6 +239,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     error,
     activeFall,
     refresh,
+    setMode,
+    sendCommand,
     toggleDevice,
     setAutoMode,
     ackEvent,

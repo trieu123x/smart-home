@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import models
+from .config import settings
 from .services import utcnow
 
 DEVICES = [
@@ -65,6 +66,8 @@ AUTOMATIONS = [
 
 
 def seed_if_empty(db: Session) -> None:
+    if not settings.seed_demo:
+        return  # che do that: chi tao thiet bi ESP32 (xem mqtt_bridge.ensure_devices)
     if db.scalar(select(func.count(models.Device.id))):
         return
 

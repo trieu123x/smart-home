@@ -3,9 +3,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..bridge_devices import BRIDGED_CODES
 from ..database import get_db
 
 router = APIRouter(prefix="/api/automations", tags=["automations"])
+
+
+def _reject_bridged_target(db: Session, device_id: int | None) -> None:
+    target = db.get(models.Device, device_id) if device_id else None
+    if target is not None and target.code in BRIDGED_CODES:
+        raise HTTPException(
+            status_code=400,
+            detail="Thiet bi nay noi qua MQTT, che do tu dong chay tren ESP32 nen khong dung luat cua server",
+        )
 
 
 def _to_out(rule: models.Automation) -> schemas.AutomationOut:
@@ -25,6 +35,7 @@ def list_automations(db: Session = Depends(get_db)):
 def create_automation(payload: schemas.AutomationCreate, db: Session = Depends(get_db)):
     if db.get(models.Device, payload.target_device_id) is None:
         raise HTTPException(status_code=400, detail="Thiet bi dich khong ton tai")
+    _reject_bridged_target(db, payload.target_device_id)
     if payload.source_device_id and db.get(models.Device, payload.source_device_id) is None:
         raise HTTPException(status_code=400, detail="Thiet bi nguon khong ton tai")
     rule = models.Automation(**payload.model_dump())
@@ -41,7 +52,10 @@ def update_automation(
     rule = db.get(models.Automation, rule_id)
     if rule is None:
         raise HTTPException(status_code=404, detail="Khong tim thay luat")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if "target_device_id" in changes:
+        _reject_bridged_target(db, changes["target_device_id"])
+    for field, value in changes.items():
         setattr(rule, field, value)
     db.commit()
     db.refresh(rule)

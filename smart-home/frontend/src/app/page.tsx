@@ -1,18 +1,22 @@
 "use client";
 
-import { Droplets, PersonStanding, ShieldAlert, Sun, Thermometer, Wifi } from "lucide-react";
+import { PersonStanding, ShieldAlert, Wifi } from "lucide-react";
 import Link from "next/link";
 
 import { ActivityChart } from "@/components/ActivityChart";
+import { ActuatorPanel } from "@/components/ActuatorPanel";
 import { useDashboard } from "@/components/DashboardProvider";
-import { DeviceCard } from "@/components/DeviceCard";
 import { EventFeed } from "@/components/EventFeed";
+import { LiveSensors } from "@/components/LiveSensors";
+import { LiveStatus } from "@/components/LiveStatus";
+import { ModeSwitch } from "@/components/ModeSwitch";
 import { SensorChart } from "@/components/SensorChart";
 import { StatCard } from "@/components/StatCard";
-import { formatNumber, timeAgo } from "@/lib/format";
+import { VideoSlot } from "@/components/VideoSlot";
+import { timeAgo } from "@/lib/format";
 
 export default function DashboardPage() {
-  const { summary, devices, events, series, activity, loading, error } = useDashboard();
+  const { summary, events, series, activity, loading, error } = useDashboard();
 
   if (error) {
     return (
@@ -31,67 +35,29 @@ export default function DashboardPage() {
     return <SkeletonGrid />;
   }
 
-  const actuators = devices.filter((device) => device.kind !== "sensor");
-
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Nhiệt độ hiện tại"
-          value={formatNumber(summary.temperature, "°C")}
-          hint="Cảm biến DHT11 phòng khách"
-          icon={Thermometer}
-        />
-        <StatCard
-          label="Độ ẩm"
-          value={formatNumber(summary.humidity, "%", 0)}
-          hint="Ngưỡng bật quạt: trên 30°C"
-          icon={Droplets}
-        />
-        <StatCard
-          label="Thiết bị online"
-          value={`${summary.devices_online}/${summary.devices_total}`}
-          hint={`${summary.actuators_on} thiết bị đang bật`}
-          icon={Wifi}
-          tone={summary.devices_online > 0 ? "good" : "warning"}
-        />
-        <StatCard
-          label="Cảnh báo ngã (24h)"
-          value={String(summary.falls_last_24h)}
-          hint={
-            summary.last_fall ? `Gần nhất ${timeAgo(summary.last_fall.ts)}` : "Chưa ghi nhận lần nào"
-          }
-          icon={ShieldAlert}
-          tone={summary.falls_last_24h > 0 ? "critical" : "good"}
-        />
+      {/* Chế độ + đường truyền */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ModeSwitch />
+        <LiveStatus />
       </div>
 
+      {/* Cảm biến trực tiếp từ ESP32 */}
+      <LiveSensors />
+
+      {/* Thiết bị + video */}
+      <div className="grid gap-4 xl:grid-cols-3">
+        <ActuatorPanel />
+        <div className="xl:col-span-2">
+          <VideoSlot />
+        </div>
+      </div>
+
+      {/* Biểu đồ lịch sử + nhật ký */}
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <SensorChart series={series} />
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <h2 className="card-title">Điều khiển nhanh</h2>
-            <Link href="/devices" className="muted hover:text-slate-300">
-              Xem tất cả
-            </Link>
-          </div>
-          <div className="mt-3 space-y-3">
-            {actuators.slice(0, 3).map((device) => (
-              <DeviceCard key={device.id} device={device} />
-            ))}
-            {actuators.length === 0 && (
-              <p className="muted py-6 text-center">Chưa có thiết bị điều khiển nào</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <ActivityChart data={activity} />
         </div>
 
         <div className="card">
@@ -107,7 +73,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <ActivityChart data={activity} />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Thiết bị online"
+          value={`${summary.devices_online}/${summary.devices_total}`}
+          hint={`${summary.actuators_on} thiết bị đang bật`}
+          icon={Wifi}
+          tone={summary.devices_online > 0 ? "good" : "warning"}
+        />
         <StatCard
           label="Lượt chuyển động (24h)"
           value={String(summary.motion_last_24h)}
@@ -115,22 +90,19 @@ export default function DashboardPage() {
           icon={PersonStanding}
         />
         <StatCard
-          label="Ánh sáng"
-          value={formatNumber(summary.lux, " lux", 0)}
-          hint="Dưới 80 lux sẽ bật đèn hành lang"
-          icon={Sun}
+          label="Cảnh báo ngã (24h)"
+          value={String(summary.falls_last_24h)}
+          hint={
+            summary.last_fall ? `Gần nhất ${timeAgo(summary.last_fall.ts)}` : "Chưa ghi nhận lần nào"
+          }
+          icon={ShieldAlert}
+          tone={summary.falls_last_24h > 0 ? "critical" : "good"}
         />
         <StatCard
           label="Cảnh báo chưa xử lý"
           value={String(summary.unacknowledged_alerts)}
           icon={ShieldAlert}
           tone={summary.unacknowledged_alerts > 0 ? "warning" : "good"}
-        />
-        <StatCard
-          label="Thiết bị đang bật"
-          value={String(summary.actuators_on)}
-          hint="Quạt, đèn, còi báo"
-          icon={Wifi}
         />
       </div>
     </div>

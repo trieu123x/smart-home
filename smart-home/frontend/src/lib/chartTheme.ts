@@ -6,6 +6,8 @@ export const CHART_COLORS = {
   temperature: "#d95926", // cam - nóng
   humidity: "#3987e5", // xanh dương - nước
   lux: "#c98500", // vàng - ánh sáng
+  ldr: "#c98500", // vàng - độ sáng (LDR)
+  gas: "#e66767", // đỏ - gas/khói
   motion: "#3987e5",
   automation: "#199e70",
   fall: "#e66767",

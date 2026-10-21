@@ -14,6 +14,58 @@ Ba chức năng chính:
 
 Các luật này nằm trong bảng `automations`, sửa được ngay trên giao diện — không cần nạp lại firmware.
 
+## Chạy với ESP32 qua MQTT (chế độ Tự động / Thủ công)
+
+Bản này đã ghép sẵn chức năng của project Django `smarthome (Django)` vào kiến trúc
+FastAPI + Next.js. **ESP32 giao tiếp qua MQTT với đúng giao thức cũ nên firmware đang chạy với
+bản Django không cần sửa.**
+
+```
+ESP32 ──MQTT──► [broker] ◄──MQTT── FastAPI (backend/app/mqtt_bridge.py) ──WebSocket──► Next.js
+```
+
+| Topic (prefix `MQTT_PREFIX`, mặc định `ptit_sh_k7x2q9/home/`) | Hướng | Nội dung |
+|---|---|---|
+| `sensors` | ESP32 → server | JSON `{ldr, dark, temp, hum, gas, gas_alarm, motion, mode, light, fan, buzzer}` |
+| `status` | ESP32 → server | `online` / `offline` (Last Will) |
+| `mode` | hai chiều, retained | `auto` / `manual` |
+| `cmd/light`, `cmd/fan`, `cmd/buzzer` | server → ESP32 | `ON` / `OFF` |
+
+- **Tự động**: ESP32 tự chạy logic như code C++ hiện tại, web chỉ hiển thị.
+- **Thủ công**: ESP32 chỉ gửi cảm biến, đèn/quạt/loa chỉ đổi khi bấm Bật/Tắt trên web.
+  Server từ chối lệnh (HTTP 409) nếu đang ở chế độ tự động.
+
+Cấu hình trong `backend/.env` (xem `.env.example`): `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`,
+`MQTT_PASS`, `MQTT_PREFIX`. Các biến này tương ứng với `settings.py` của bản Django.
+
+Điểm khác với phần HTTP cũ:
+
+- Backend tự tạo 4 thiết bị: `esp32-main` (cảm biến), `light-main`, `fan-main`, `buzzer-main`.
+  Dữ liệu demo chỉ tạo khi đặt `SEED_DEMO=true`.
+- **Luật ở trang Tự động hóa không điều khiển được 4 thiết bị này** vì logic tự động nằm trên ESP32
+  (backend sẽ báo lỗi nếu tạo luật nhắm vào chúng). Luật vẫn dùng bình thường cho thiết bị HTTP.
+- Lịch sử cảm biến lưu vào SQLite mỗi `MQTT_HISTORY_SECONDS` giây (mặc định 10), còn giao diện
+  nhận từng bản tin realtime qua WebSocket (kênh `live`).
+- Khung **Camera** trên trang Tổng quan để trống; đặt `NEXT_PUBLIC_VIDEO_URL` trong
+  `frontend/.env.local` để hiện luồng video.
+- Cảnh báo gas/khói: banner đỏ trên đầu trang, ghi sự kiện `gas_alarm` vào nhật ký.
+
+Endpoint mới: `GET /api/live`, `POST /api/mode {"mode":"auto|manual"}`,
+`POST /api/command {"device":"light|fan|buzzer","state":true}`.
+
+**Chạy thử khi chưa có ESP32**:
+
+```bash
+cd backend
+python simulator_mqtt.py --prefix ptit_sh_k7x2q9/home/ --gas-at 20
+```
+
+Giả lập đúng giao thức trên (có cả chế độ auto/manual). Trong lúc chạy gõ `g`/`m`/`d` + Enter để
+bật/tắt rò gas, chuyển động, trời tối.
+
+> Broker công cộng `broker.hivemq.com` không có mật khẩu: ai biết prefix đều đọc/điều khiển được.
+> Khi triển khai thật hãy dùng broker riêng (Mosquitto) có user/password và prefix khó đoán.
+
 ## Cấu trúc thư mục
 
 ```
@@ -24,9 +76,12 @@ smart-home/
 │   │   ├── models.py       Device, Reading, Event, Automation, Command
 │   │   ├── schemas.py      Pydantic schema
 │   │   ├── services.py     ghi telemetry, chạy luật tự động, hẹn giờ tắt
+│   │   ├── mqtt_bridge.py  cầu nối MQTT <-> backend (cảm biến, chế độ auto/manual, lệnh)
+│   │   ├── bridge_devices.py  mã 4 thiết bị ESP32 nối qua MQTT
 │   │   ├── seed.py         tạo sẵn thiết bị + luật + dữ liệu mẫu
 │   │   └── routers/        devices, events, automations, dashboard, ingest
-│   └── simulator.py    giả lập ESP32 để demo khi chưa có thiết bị
+│   ├── simulator.py       giả lập ESP32 qua HTTP
+│   └── simulator_mqtt.py  giả lập ESP32 qua MQTT (auto/manual)
 ├── frontend/           Next.js 14 App Router
 │   └── src/
 │       ├── app/            4 trang: tổng quan, thiết bị, tự động hóa, cảnh báo
@@ -153,5 +208,4 @@ X-Device-Key: esp32-secret-key
 
 - Đăng nhập cho người nhà (JWT) và phân quyền xem/điều khiển.
 - Gửi thông báo Telegram/Zalo khi phát hiện ngã.
-- Thay HTTP polling bằng MQTT nếu số lượng thiết bị tăng.
 - Lưu lịch sử dài hạn sang PostgreSQL/TimescaleDB thay cho SQLite.
