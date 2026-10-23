@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
@@ -169,3 +169,23 @@ class CommandOut(ORMModel):
     action: str
     source: str
     created_at: UtcDatetime
+
+
+# ---------- Trang thai truc tiep tu ESP32 qua MQTT ----------
+class LiveOut(BaseModel):
+    """Giong /api/state cua ban Django: cam bien moi nhat + che do + trang thai ket noi."""
+
+    sensors: dict[str, Any]
+    mode: Literal["auto", "manual"]
+    esp_online: bool
+    broker_ok: bool
+    age: float | None = None
+
+
+class ModeIn(BaseModel):
+    mode: Literal["auto", "manual"]
+
+
+class CommandIn(BaseModel):
+    device: Literal["light", "fan", "buzzer"]
+    state: bool

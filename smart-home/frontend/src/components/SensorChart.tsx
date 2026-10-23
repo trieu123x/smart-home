@@ -16,7 +16,7 @@ import { AXIS_COLOR, CHART_COLORS, GRID_COLOR, SURFACE, tooltipStyle } from "@/l
 import { METRIC_LABEL, METRIC_UNIT, formatDateTime, formatTime } from "@/lib/format";
 import type { MetricSeries } from "@/lib/types";
 
-const METRICS = ["temperature", "humidity", "lux"] as const;
+const METRICS = ["temperature", "humidity", "ldr", "gas"] as const;
 type Metric = (typeof METRICS)[number];
 
 /**
@@ -28,6 +28,7 @@ export function SensorChart({ series }: { series: MetricSeries[] }) {
 
   const color = CHART_COLORS[metric];
   const unit = METRIC_UNIT[metric];
+  const digits = metric === "ldr" || metric === "gas" ? 0 : 1; // ADC là số nguyên
   const points = series.find((line) => line.metric === metric)?.points ?? [];
   const data = points.map((point) => ({ ts: point.ts, value: point.value }));
   const latest = data.at(-1)?.value;
@@ -56,7 +57,7 @@ export function SensorChart({ series }: { series: MetricSeries[] }) {
       </div>
 
       <p className="mt-4 text-3xl font-semibold text-white">
-        {latest === undefined ? "--" : latest.toFixed(1)}
+        {latest === undefined ? "--" : latest.toFixed(digits)}
         <span className="ml-1 text-base font-normal text-slate-400">{unit}</span>
       </p>
 
@@ -93,7 +94,7 @@ export function SensorChart({ series }: { series: MetricSeries[] }) {
                 contentStyle={tooltipStyle}
                 cursor={{ stroke: color, strokeWidth: 1, strokeDasharray: "4 4" }}
                 labelFormatter={(value: string) => formatDateTime(value)}
-                formatter={(value: number) => [`${value.toFixed(1)}${unit}`, METRIC_LABEL[metric]]}
+                formatter={(value: number) => [`${value.toFixed(digits)}${unit}`, METRIC_LABEL[metric]]}
               />
               <Area
                 type="monotone"

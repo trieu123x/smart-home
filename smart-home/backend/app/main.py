@@ -4,10 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import mqtt_bridge
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .realtime import manager
-from .routers import automations, dashboard, devices, events, ingest
+from .routers import automations, dashboard, devices, events, ingest, live
 from .seed import seed_if_empty
 from .services import mark_offline_devices, run_auto_off
 
@@ -22,6 +23,7 @@ async def background_worker() -> None:
             try:
                 await run_auto_off(db)
                 await mark_offline_devices(db)
+                await mqtt_bridge.tick()
                 db.commit()
             finally:
                 db.close()
@@ -36,12 +38,15 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_if_empty(db)
+        mqtt_bridge.ensure_devices(db)
     finally:
         db.close()
 
+    mqtt_bridge.start(asyncio.get_running_loop())
     task = asyncio.create_task(background_worker())
     yield
     task.cancel()
+    mqtt_bridge.stop()
 
 
 app = FastAPI(
@@ -64,11 +69,16 @@ app.include_router(events.router)
 app.include_router(automations.router)
 app.include_router(dashboard.router)
 app.include_router(ingest.router)
+app.include_router(live.router)
 
 
 @app.get("/api/health", tags=["health"])
 def health():
-    return {"status": "ok", "websocket_clients": manager.count}
+    return {
+        "status": "ok",
+        "websocket_clients": manager.count,
+        "mqtt_broker": mqtt_bridge.get_state()["broker_ok"],
+    }
 
 
 @app.websocket("/ws")

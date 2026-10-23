@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models
+from .bridge_devices import BRIDGED_CODES
 from .realtime import manager
 
 # Hen gio tat tu dong: {device_id: thoi diem phai tat}
@@ -139,8 +140,8 @@ async def evaluate_automations(db: Session, source: models.Device, metric: str, 
             continue
 
         target = db.get(models.Device, rule.target_device_id)
-        if target is None or not target.auto_mode:
-            continue
+        if target is None or not target.auto_mode or target.code in BRIDGED_CODES:
+            continue  # thiet bi MQTT do ESP32 tu dieu khien
 
         desired = rule.action == "on"
 
@@ -184,7 +185,7 @@ async def handle_fall(db: Session, device: models.Device, message: str | None = 
         device=device,
     )
     for alarm in db.scalars(select(models.Device).where(models.Device.kind == "alarm")).all():
-        if alarm.auto_mode:
+        if alarm.auto_mode and alarm.code not in BRIDGED_CODES:
             await set_device_state(db, alarm, True, source="automation", auto_off_seconds=30)
     return event
 

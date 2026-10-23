@@ -4,6 +4,7 @@ import clsx from "clsx";
 import {
   AlertTriangle,
   Check,
+  Flame,
   Hand,
   PersonStanding,
   Plug,
@@ -20,6 +21,8 @@ import { useDashboard } from "./DashboardProvider";
 const ICONS: Record<string, LucideIcon> = {
   fall_detected: AlertTriangle,
   motion: PersonStanding,
+  gas_alarm: Flame,
+  gas_clear: Flame,
   automation: Zap,
   manual: Hand,
   device_online: PlugZap,

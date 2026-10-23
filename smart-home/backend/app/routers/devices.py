@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import models, schemas, services
+from .. import models, mqtt_bridge, schemas, services
+from ..bridge_devices import BRIDGED_CODES, KEY_BY_CODE
 from ..database import get_db
 from ..security import require_device_key
 
@@ -43,7 +44,13 @@ def update_device(device_id: int, payload: schemas.DeviceUpdate, db: Session = D
     device = db.get(models.Device, device_id)
     if device is None:
         raise HTTPException(status_code=404, detail="Khong tim thay thiet bi")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if device.code in BRIDGED_CODES and "auto_mode" in changes:
+        raise HTTPException(
+            status_code=409,
+            detail="Che do tu dong/thu cong do ESP32 quan ly, hay doi o trang Tong quan",
+        )
+    for field, value in changes.items():
         setattr(device, field, value)
     db.commit()
     db.refresh(device)
@@ -69,6 +76,16 @@ async def toggle_device(
         raise HTTPException(status_code=404, detail="Khong tim thay thiet bi")
     if device.kind == "sensor":
         raise HTTPException(status_code=400, detail="Khong the bat/tat mot cam bien")
+
+    if device.code in KEY_BY_CODE:
+        # Thiet bi noi qua MQTT: gui lenh xuong ESP32 (chi o che do thu cong)
+        try:
+            await mqtt_bridge.manual_command(db, KEY_BY_CODE[device.code], payload.state)
+        except mqtt_bridge.BridgeError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+        db.commit()
+        db.refresh(device)
+        return device
 
     await services.set_device_state(db, device, payload.state, source="manual")
     verb = "bat" if payload.state else "tat"

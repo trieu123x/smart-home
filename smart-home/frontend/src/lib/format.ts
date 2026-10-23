@@ -39,6 +39,8 @@ export const METRIC_LABEL: Record<string, string> = {
   temperature: "Nhiệt độ",
   humidity: "Độ ẩm",
   lux: "Ánh sáng",
+  ldr: "Độ sáng",
+  gas: "Gas/khói",
   motion: "Chuyển động",
   fall: "Phát hiện ngã",
 };
@@ -47,6 +49,8 @@ export const METRIC_UNIT: Record<string, string> = {
   temperature: "°C",
   humidity: "%",
   lux: " lux",
+  ldr: "",
+  gas: "",
   motion: "",
   fall: "",
 };
@@ -54,6 +58,8 @@ export const METRIC_UNIT: Record<string, string> = {
 export const EVENT_LABEL: Record<string, string> = {
   fall_detected: "Phát hiện ngã",
   motion: "Chuyển động",
+  gas_alarm: "Cảnh báo gas/khói",
+  gas_clear: "Hết cảnh báo gas",
   automation: "Tự động hóa",
   manual: "Điều khiển tay",
   device_online: "Thiết bị kết nối",

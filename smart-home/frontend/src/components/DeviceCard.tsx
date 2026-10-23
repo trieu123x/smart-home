@@ -5,7 +5,7 @@ import { Bell, Fan, Lightbulb, Radar } from "lucide-react";
 import { useState } from "react";
 
 import { timeAgo } from "@/lib/format";
-import type { Device } from "@/lib/types";
+import { MQTT_DEVICE_CODES, type Device } from "@/lib/types";
 
 import { useDashboard } from "./DashboardProvider";
 
@@ -24,16 +24,26 @@ const KIND_LABEL = {
 } as const;
 
 export function DeviceCard({ device }: { device: Device }) {
-  const { toggleDevice, setAutoMode } = useDashboard();
+  const { live, toggleDevice, setAutoMode } = useDashboard();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const Icon = ICONS[device.kind];
   const isActuator = device.kind !== "sensor";
 
+  // Thiết bị nối qua MQTT: chế độ auto/manual do cả hệ thống quyết định (ESP32),
+  // chỉ bật/tắt được khi ở chế độ thủ công và ESP32 đang online.
+  const bridged = device.code in MQTT_DEVICE_CODES;
+  const systemManual = live?.mode === "manual";
+  const canToggle = !bridged || (systemManual && !!live?.esp_online);
+
   const handleToggle = async () => {
     setBusy(true);
+    setError(null);
     try {
       await toggleDevice(device, !device.state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không bật/tắt được thiết bị");
     } finally {
       setBusy(false);
     }
@@ -79,24 +89,34 @@ export function DeviceCard({ device }: { device: Device }) {
 
         {isActuator ? (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => void setAutoMode(device, !device.auto_mode)}
-              className={clsx(
-                "chip border transition",
-                device.auto_mode
-                  ? "border-brand-500/30 bg-brand-500/10 text-brand-400"
-                  : "border-white/10 text-slate-400",
-              )}
-              title="Cho phép các luật tự động điều khiển thiết bị này"
-            >
-              AUTO
-            </button>
+            {bridged ? (
+              <span
+                className="chip border border-white/10 text-slate-400"
+                title="Chế độ chung của hệ thống, đổi ở trang Tổng quan"
+              >
+                {systemManual ? "THỦ CÔNG" : "TỰ ĐỘNG"}
+              </span>
+            ) : (
+              <button
+                onClick={() => void setAutoMode(device, !device.auto_mode)}
+                className={clsx(
+                  "chip border transition",
+                  device.auto_mode
+                    ? "border-brand-500/30 bg-brand-500/10 text-brand-400"
+                    : "border-white/10 text-slate-400",
+                )}
+                title="Cho phép các luật tự động điều khiển thiết bị này"
+              >
+                AUTO
+              </button>
+            )}
 
             <button
               role="switch"
               aria-checked={device.state}
               aria-label={`Bật tắt ${device.name}`}
-              disabled={busy}
+              disabled={busy || !canToggle}
+              title={!canToggle ? "Chuyển sang chế độ thủ công để điều khiển" : undefined}
               onClick={handleToggle}
               className={clsx(
                 "relative h-7 w-12 rounded-full transition disabled:opacity-50",
@@ -115,6 +135,7 @@ export function DeviceCard({ device }: { device: Device }) {
           <span className="muted">Chỉ đọc dữ liệu</span>
         )}
       </div>
+      {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
     </div>
   );
 }

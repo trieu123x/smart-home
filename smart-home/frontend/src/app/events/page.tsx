@@ -10,6 +10,7 @@ import { EVENT_LABEL } from "@/lib/format";
 const FILTERS = [
   { value: "all", label: "Tất cả" },
   { value: "fall_detected", label: EVENT_LABEL.fall_detected },
+  { value: "gas_alarm", label: EVENT_LABEL.gas_alarm },
   { value: "motion", label: EVENT_LABEL.motion },
   { value: "automation", label: EVENT_LABEL.automation },
   { value: "manual", label: EVENT_LABEL.manual },
