@@ -76,7 +76,7 @@ def test_automatic_delivery_retries_after_person_disappears(monkeypatch):
 
     monkeypatch.setattr(server, 'send_notification', fake_send_notification)
     app = server.create_app(factory=Model, camera_factory=Camera,
-                            camera_settings=CameraSettings(url='rtsp://example.org/live/fallguard'))
+                            camera_settings=CameraSettings(url='adb:back'))
     with TestClient(app) as client:
         login(client)
         assert client.post('/api/cctv/start').status_code == 200

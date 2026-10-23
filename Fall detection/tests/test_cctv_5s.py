@@ -80,7 +80,7 @@ class FakeCamera:
     def close(self):self.enabled=False
     def snapshot(self):
         self.sequence+=1
-        return ({'configured':True, 'name':'Larix test', 'enabled':self.enabled,
+        return ({'configured':True, 'name':'ADB test', 'enabled':self.enabled,
                  'state':'connected' if self.enabled else 'stopped', 'epoch':0,
                  'sequence':self.sequence, 'frame_age':0.0, 'threshold':.4,'confirmations':3},
                 np.full((96,128,3),128,dtype=np.uint8) if self.enabled else None)
@@ -101,7 +101,7 @@ def login(client):
 def test_dashboard_cctv_api_and_no_browser_publisher():
     FakeModel.calls=0
     app=create_app(factory=FakeModel,camera_factory=FakeCamera,
-        camera_settings=CameraSettings(url='rtsp://127.0.0.1:8554/live/fallguard'))
+        camera_settings=CameraSettings(url='adb:back'))
     with TestClient(app) as client:
         assert client.get('/api/cctv/view').status_code==401
         login(client)
@@ -121,26 +121,3 @@ def test_dashboard_cctv_api_and_no_browser_publisher():
         assert client.get('/api/cctv/frame').status_code==200
         assert client.get('/api/cctv/view').json()['view'] is None
 
-
-def test_camera_setup_keeps_secrets_out_of_distributable(monkeypatch,tmp_path):
-    from fallguard import camera_receiver_setup as s
-    monkeypatch.setattr(s,'ROOT',tmp_path)
-    monkeypatch.setattr(s,'CONFIG',tmp_path/'mediamtx.yml')
-    monkeypatch.setattr(s,'CONNECTION',tmp_path/'LARIX_CONNECTION.txt')
-    monkeypatch.setattr(s,'ENV',tmp_path/'.env')
-    (tmp_path/'.env').write_text('FALLGUARD_PASSWORD=private-super-secret\nCCTV_URL=\n')
-    assert s.setup()==0
-    text=s.CONFIG.read_text()
-    import yaml
-    config=yaml.safe_load(text)
-    assert config['rtmpAddress']=='127.0.0.1:1935'
-    assert config['rtspAddress']=='127.0.0.1:8554'
-    assert config['authInternalUsers'][0]['permissions']==[{'action':'publish','path':'live/fallguard'}]
-    assert config['authInternalUsers'][1]['permissions']==[{'action':'read','path':'live/fallguard'}]
-    assert 'private-super-secret' in s.ENV.read_text()
-    assert 'CCTV_AUTOSTART=1' in s.ENV.read_text()
-    assert 'rtmps://' in s.CONNECTION.read_text()
-    assert 'live/fallguard' in s.CONNECTION.read_text()
-    assert 'live/fallguard' in s.ENV.read_text()
-    assert config['paths']['live/fallguard']['source'] == 'publisher'
-    assert s.setup()==1

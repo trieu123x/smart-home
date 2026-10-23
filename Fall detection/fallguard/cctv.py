@@ -1,9 +1,8 @@
-"""One configured IP camera, read on the server with bounded network timeouts."""
+"""USB ADB phone-camera capture for FallGuard via bundled scrcpy server."""
 import os
 import threading
 import time
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
 from .telegram_config import _settings
 
@@ -14,23 +13,17 @@ def setting(key, default=''):
 
 @dataclass(frozen=True)
 class CameraSettings:
-    url: str = ''
-    name: str = 'Camera CCTV'
-    autostart: bool = False
+    url: str = 'adb:back'
+    name: str = 'Android USB ADB'
+    autostart: bool = True
     threshold: float = .4
     confirmations: int = 3
 
     @classmethod
     def load(cls):
-        url = setting('CCTV_URL')
-        if url:
-            try:
-                parts = urlsplit(url)
-                if parts.scheme not in ('rtsp', 'http', 'https') or not parts.hostname:
-                    raise ValueError()
-                _ = parts.port
-            except ValueError:
-                raise ValueError('CCTV_URL cần là địa chỉ luồng RTSP hoặc HTTP(S) hợp lệ.') from None
+        url = setting('CCTV_URL', 'adb:back').lower()
+        if url not in ('adb:back', 'adb:front', 'adb:display'):
+            raise ValueError('CCTV_URL phai la adb:back, adb:front hoac adb:display.')
         try:
             threshold = float(setting('CCTV_FALL_THRESHOLD', '0.4'))
             confirmations = int(setting('CCTV_CONFIRMATIONS', '3'))
@@ -38,37 +31,15 @@ class CameraSettings:
                 raise ValueError()
         except ValueError:
             raise ValueError('Ngưỡng CCTV cần từ 0.05–0.95; số lần xác nhận từ 1–20.') from None
-        return cls(url, setting('CCTV_NAME', 'Camera CCTV')[:80],
-                   setting('CCTV_AUTOSTART', '0').lower() in ('1', 'true', 'yes'),
+        return cls(url, setting('CCTV_NAME', 'Android USB ADB')[:80],
+                   setting('CCTV_AUTOSTART', '1').lower() in ('1', 'true', 'yes'),
                    threshold, confirmations)
 
 
-def _configure_rtsp_latency(url):
-    """Reduce RTSP client-side buffering; never override explicit FFmpeg settings.
-
-    OpenCV/FFmpeg reads this process variable at capture creation. This can
-    improve input buffering, but cannot remove latency already in the sender,
-    internet uplink, or encoder. Disable with CCTV_LOW_LATENCY=0 if needed.
-    """
-    if urlsplit(url).scheme.lower() != 'rtsp':
-        return
-    if setting('CCTV_LOW_LATENCY', '1').lower() in ('0', 'false', 'no', 'off'):
-        return
-    os.environ.setdefault(
-        'OPENCV_FFMPEG_CAPTURE_OPTIONS',
-        'rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0'
-    )
-
-
 def open_camera(url):
-    _configure_rtsp_latency(url)
-    import cv2
-    # FFmpeg supports these open-only properties. Do not fall back to an unbounded read.
-    return cv2.VideoCapture(url, cv2.CAP_FFMPEG, [
-        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000,
-        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000,
-    ])
-
+    """Stream native phone camera or Android screen over USB ADB -> raw H264."""
+    from .adb_camera import AdbH264Capture
+    return AdbH264Capture(url)
 
 class CameraReader:
     """Only this thread owns VideoCapture; callers never release it during read()."""
@@ -156,9 +127,10 @@ class CameraReader:
                         self._captured_at = time.monotonic()
                         self._sequence += 1
                         self._state = 'connected'
-            except Exception:
-                # Never place the URL or credentials in API errors.
-                pass
+            except Exception as exc:
+                # Local ADB errors are useful during USB setup; no credentials in URLs.
+                import logging
+                logging.warning('FallGuard camera: %s', exc)
             finally:
                 if capture is not None:
                     capture.release()

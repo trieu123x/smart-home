@@ -9,17 +9,17 @@
 <body>
 <header class="topbar"><a class="brand" href="/"><span class="brand-icon">⌁</span> Fall<span>Guard</span><small>CAMERA AI</small></a><div class="server-pill"><i id="serverDot"></i><span id="serverState">Đang kết nối</span></div></header>
 <main>
-  <div class="heading"><div><div class="eyebrow">GIÁM SÁT CAMERA TỪ XA</div><h1>Theo dõi té ngã<span>.</span></h1><p>Camera điện thoại chỉ quay và truyền hình bằng Streamlabs / Larix. Máy tính chạy YOLO GPU và xác nhận tư thế ngã liên tục trong 5 giây trước khi cảnh báo.</p></div></div>
+  <div class="heading"><div><div class="eyebrow">GIÁM SÁT TÉ NGÃ QUA USB</div><h1>Theo dõi té ngã<span>.</span></h1><p>Camera Android truyền hình ảnh trực tiếp qua ADB và cáp USB. Máy tính chạy YOLO trên GPU và xác nhận tư thế ngã liên tục trong 5 giây trước khi cảnh báo.</p></div></div>
   <div id="message" class="message" role="status" hidden></div>
   <div class="layout">
     <section class="camera-card">
-      <div class="card-top"><div><span class="dot" id="cameraDot"></span><strong id="cameraTitle">Camera chưa kết nối</strong></div><span class="small-chip">CAMERA IP / LARIX</span></div>
-      <div class="source-controls"><div class="connection-line"><strong id="cctvName">FallGuard Camera</strong><span id="cctvState">Chưa kết nối</span></div><p id="cctvHelp">Điện thoại phát video bằng Streamlabs / Larix, không cần mở trình duyệt hoặc chạy AI.</p></div>
+      <div class="card-top"><div><span class="dot" id="cameraDot"></span><strong id="cameraTitle">Camera chưa kết nối</strong></div><span class="small-chip">ANDROID ADB USB</span></div>
+      <div class="source-controls"><div class="connection-line"><strong id="cctvName">FallGuard Camera</strong><span id="cctvState">Chưa kết nối</span></div><p id="cctvHelp">Kết nối cáp USB, bật USB debugging và cấp quyền ADB trên điện thoại. AI xử lý trên máy tính.</p></div>
       <div class="viewport" id="viewport">
         <img id="cctvImage" alt="Hình ảnh trực tiếp từ camera" hidden>
         <canvas id="output" aria-label="Khung nhận diện AI" hidden></canvas>
         <button id="closeFullscreen" class="close-fullscreen" type="button">✕ Thu nhỏ</button>
-        <div class="empty-camera" id="emptyCamera"><div class="camera-symbol"><svg viewBox="0 0 48 48" fill="none"><rect x="7" y="12" width="34" height="27" rx="6"/><circle cx="24" cy="25" r="7"/><path d="M16 12l3-5h10l3 5"/></svg></div><h2>Chưa có tín hiệu video</h2><p>Bật phát hình trên ứng dụng camera và nhấn Kết nối camera.</p><span class="permission-note">Thiết bị phát và website hoạt động độc lập</span></div>
+        <div class="empty-camera" id="emptyCamera"><div class="camera-symbol"><svg viewBox="0 0 48 48" fill="none"><rect x="7" y="12" width="34" height="27" rx="6"/><circle cx="24" cy="25" r="7"/><path d="M16 12l3-5h10l3 5"/></svg></div><h2>Chưa có tín hiệu video</h2><p>Cắm điện thoại, cho phép USB debugging, sau đó nhấn Kết nối camera.</p><span class="permission-note">ADB phải nhận thiết bị và camera không bị ứng dụng khác chiếm</span></div>
         <div class="frame-tag" id="frameTag" hidden><span class="dot"></span><span id="frameText">Đang xem...</span></div>
         <div id="alertBanner" class="alert-banner" role="alert" hidden><b>⚠ ĐÃ XÁC NHẬN NGÃ SAU 5 GIÂY</b><span>Hãy kiểm tra người trong khung hình.</span><button id="acknowledge" type="button">Tắt tiếng lần này</button></div>
       </div>
@@ -43,7 +43,7 @@
     </aside>
   </div>
   <section class="events-card"><div class="events-header"><div><h2>Lịch sử cảnh báo <span id="eventCount">0</span></h2><p>Các sự kiện đã xác nhận trong phiên server.</p></div></div><div id="eventsEmpty" class="events-empty"><span>✓</span> Chưa có cảnh báo.</div><ol id="events" class="events"></ol></section>
-  <details class="guide"><summary>Hướng dẫn sử dụng <span>＋</span></summary><div><p><b>1.</b> Khởi chạy MediaMTX, FallGuard và Tailscale Funnel trên máy tính.</p><p><b>2.</b> Mở Streamlabs hoặc Larix trên điện thoại, nhập URL RTMPS, bật truyền hình.</p><p><b>3.</b> Trên website nhấn Kết nối camera và tùy chọn bật AI; khi nằm/ngã liên tục ít nhất 5 giây mới xác nhận cảnh báo.</p><p><b>Lưu ý:</b> Đóng website không dừng camera và không tắt AI đang chạy trên server. Tắt công tắc AI không dừng luồng video.</p></div></details>
+  <details class="guide"><summary>Hướng dẫn sử dụng <span>＋</span></summary><div><p><b>1.</b> Cắm điện thoại Android 12+ qua USB, bật USB debugging và cho phép máy tính. Chọn CCTV_URL=adb:back (camera sau) hoặc adb:front (camera trước) trong .env. Tắt FallGuard rồi chạy CHECK_ADB_CAMERA.bat để thử luồng.</p><p><b>2.</b> Chạy START_WINDOWS.bat, sau đó đăng nhập tại http://localhost:8000. Camera tự kết nối nếu CCTV_AUTOSTART=1.</p><p><b>3.</b> Trên website nhấn Kết nối camera và bật AI; khi phát hiện ngã liên tục ít nhất 5 giây mới xác nhận cảnh báo.</p><p><b>Lưu ý:</b> Đóng website không dừng camera và không tắt AI đang chạy trên server. Tắt công tắc AI không dừng luồng video.</p></div></details>
   <footer><span class="footer-brand">FallGuard</span><p>Phát hiện ngã bằng AI có thể báo nhầm hoặc bỏ sót. Kiểm tra trực tiếp khi có cảnh báo.</p></footer>
 </main>
 </body></html>

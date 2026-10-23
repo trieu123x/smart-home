@@ -111,7 +111,7 @@ async function refresh(){
     tracks=(!camera.analysis_enabled||!live||!data.view||data.view.age>2)?[]:data.view.tracks;
     const danger=tracks.some(t=>t.danger);
     alarm(danger&&!document.hidden);
-    if(!live)statusText('Chưa có tín hiệu','Kiểm tra Streamlabs / Larix và MediaMTX.');
+    if(!live)statusText('Chưa có tín hiệu','Kiểm tra USB debugging, quyền ADB và CCTV_URL=adb:back trong .env.');
     else if(!camera.analysis_enabled)statusText('Chỉ xem trực tiếp','AI đang tắt, hình ảnh vẫn truyền bình thường.');
     else if(danger)statusText('Đã xác nhận ngã','Người nằm/ngã liên tục ít nhất 5 giây.',true);
     else if(tracks.some(t=>t.pending)){
