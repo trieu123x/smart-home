@@ -51,8 +51,8 @@ echo OK>".venv\fallguard-adb-deps-v1"
 
 :run
 echo [CAMERA] Android USB ADB: video truc tiep, khong can DroidCam, RTMP, MediaMTX.
-if not exist "models\detection\yolo11s.pt" echo [WARN] Thieu model models\detection\yolo11s.pt
-if not exist "models\pose_classification\leeyunjai-falldetect-11x.pt" echo [WARN] Thieu model models\pose_classification\leeyunjai-falldetect-11x.pt
+if not exist "models\fall\best_fall_lstm.pth" echo [ERROR] Thieu model models\fall\best_fall_lstm.pth
+if not exist "models\pose\yolo11n-pose.pt" echo [INFO] YOLO11n Pose se duoc tai tu dong khi khoi dong (can Internet lan dau).
 ".venv\Scripts\python.exe" -m fallguard.start
 if errorlevel 1 goto failed
 goto end

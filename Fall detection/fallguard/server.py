@@ -241,7 +241,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                 f'Camera: {source}\n'
                 f'Người trong khung hình: #{payload.person_id}\n'
                 f'Điểm model té ngã: {round(payload.score * 100)}%\n'
-                f'Xác nhận liên tiếp: {payload.confirmations} lần, duy trì tư thế ngã ít nhất 5 giây\n'
+                f'Xác nhận bởi BiLSTM trên chuỗi 32 frame, {payload.confirmations} cửa sổ liên tiếp\n'
                 f'Thời gian: {datetime.now().astimezone().strftime("%d/%m/%Y %H:%M:%S %z")}\n\n'
                 'Đây là cảnh báo từ camera AI; cần kiểm tra trực tiếp.'
             )
@@ -272,7 +272,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                 'telegram': app.state.cctv_telegram,
                 'telegram_detail': app.state.cctv_telegram_detail,
                 'analysis_enabled': app.state.cctv_analysis,
-                'fall_confirm_seconds': 5.0}
+                'fall_confirm_seconds': None, 'fall_window_frames': 32}
 
     @app.get('/api/cctv/status')
     async def camera_status():
@@ -336,7 +336,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
         tracker = FallTracker()
         last_sequence, last_epoch, last_generation, event_id = -1, -1, -1, 0
         last_infer_time = 0.0
-        infer_interval = 0.2          # giây — 1 frame mỗi 0,2 s
+        infer_interval = 0.15         # target 6-7 pose samples/s (32 frames ~ 5 s)
         # Delivery jobs stay alive after a confirmed fall, even when later frames
         # lose the person. Previously retries were tied to continuously tracked boxes.
         notification_jobs = {}
@@ -398,6 +398,8 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
             generation = app.state.cctv_analysis_generation
             if status['epoch'] != last_epoch or generation != last_generation:
                 tracker.reset()
+                if app.state.model is not None and hasattr(app.state.model, 'reset'):
+                    app.state.model.reset()
                 # Do not cancel accepted fall-alert deliveries when camera changes.
                 notification_jobs = {k: job for k, job in notification_jobs.items() if not job.done()}
                 app.state.cctv_view = None
@@ -433,8 +435,11 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                         or latest['epoch'] != status['epoch'] or latest['state'] != 'connected' or app.state.closing):
                     continue
                 now = time.monotonic()
-                tracks = tracker.update(result['detections'], camera_settings.threshold,
-                                        camera_settings.confirmations, now)
+                # BiLSTM scores per-person 32-pose sliding windows, NEVER single frames.
+                scorer = getattr(app.state.model, 'score_sequences', None)
+                tracks = await asyncio.to_thread(
+                    tracker.update, result['detections'], camera_settings.threshold,
+                    camera_settings.confirmations, now, scorer)
                 app.state.cctv_error = None
                 app.state.cctv_view = {'width': result['width'], 'height': result['height'], 'image': image, 'tracks': tracks,
                                        'sequence': status['sequence'], 'epoch': status['epoch'],

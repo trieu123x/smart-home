@@ -1,12 +1,18 @@
-"""Two-stage inference using the two supplied YOLO weights; no downloads."""
-import os
+"""YOLO11 Pose (17 keypoints) + Kaggle-trained bidirectional LSTM.
+
+Input features deliberately match the Kaggle training cell; no previous
+FallDetect image classifier or second YOLO is used.
+"""
 import logging
+import os
 import time
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
+POSE_WEIGHTS = ROOT / 'models' / 'pose' / 'yolo11n-pose.pt'
+LSTM_WEIGHTS = ROOT / 'models' / 'fall' / 'best_fall_lstm.pth'
 
 
 def select_device(torch, requested='auto'):
@@ -22,65 +28,167 @@ def select_device(torch, requested='auto'):
     raise ValueError('FALL_DEVICE phai la auto, cpu, cuda hoac cuda:0.')
 
 
-def square_crop(frame, box, margin=0.10):
-    h, w = frame.shape[:2]
-    x1, y1, x2, y2 = box
-    bw, bh = x2 - x1, y2 - y1
-    x1, y1 = max(0, int(x1 - bw * margin)), max(0, int(y1 - bh * margin))
-    x2, y2 = min(w, int(x2 + bw * margin)), min(h, int(y2 + bh * margin))
-    if x2 - x1 < 16 or y2 - y1 < 16:
-        return None
-    crop = frame[y1:y2, x1:x2]
-    ch, cw = crop.shape[:2]
-    side = max(ch, cw)
-    out = np.zeros((side, side, 3), dtype=frame.dtype)
-    out[(side-ch)//2:(side-ch)//2+ch, (side-cw)//2:(side-cw)//2+cw] = crop
-    return out
+def feature_from_pose(box, xyn, confidence, height, width):
+    """Training parity: 17*(rel_x,rel_y,conf) + aspect,cy,height,visible.
+
+    box: absolute xyxy; xyn: (17,2) normalized to *original frame*;
+    confidence: per-joint YOLO confidence. Failed/low-visibility pose is zero.
+    """
+    vec = np.zeros(55, dtype=np.float32)
+    pts = np.asarray(xyn, dtype=np.float32)
+    scores = np.asarray(confidence, dtype=np.float32)
+    if pts.shape != (17, 2) or scores.shape != (17,):
+        return vec, False
+    visible = (scores >= .25) & np.isfinite(pts).all(axis=1)
+    if visible.sum() < 5:
+        return vec, False
+    x1, y1, x2, y2 = map(float, box)
+    cx = (x1 + x2) / (2 * width)
+    cy = (y1 + y2) / (2 * height)
+    bw = max((x2 - x1) / width, 1e-5)
+    bh = max((y2 - y1) / height, 1e-5)
+    scale = max(bw, bh, 1e-5)
+    rel = (pts - np.asarray([cx, cy], dtype=np.float32)) / scale
+    rel[~visible] = 0
+    joint = np.column_stack([rel, np.where(visible, scores, 0)])
+    vec[:51] = joint.reshape(-1)
+    vec[51:] = [bw / bh, cy, bh, visible.mean()]
+    return vec, True
+
+
+class FallLSTM:
+    """Exact trained torch network, defined without requiring torch at import."""
+    @staticmethod
+    def build(torch, dim=55, hidden=128):
+        from torch import nn
+
+        class Net(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.lstm = nn.LSTM(dim, hidden, num_layers=2, dropout=.25,
+                                    bidirectional=True, batch_first=True)
+                self.classifier = nn.Sequential(
+                    nn.LayerNorm(hidden * 4), nn.Linear(hidden * 4, 128),
+                    nn.ReLU(), nn.Dropout(.3), nn.Linear(128, 2))
+
+            def forward(self, x):
+                z, _ = self.lstm(x)
+                return self.classifier(torch.cat((z.mean(dim=1), z[:, -1]), dim=1))
+        return Net()
 
 
 class Detector:
-    def __init__(self):
+    """Pose extractor and sequence scorer. Person histories live in FallTracker."""
+    def __init__(self, pose=None, checkpoint_path=LSTM_WEIGHTS):
         import torch
         from ultralytics import YOLO
-        torch.set_num_threads(min(4, os.cpu_count() or 1))
         from .telegram_config import _settings
+
+        self.torch = torch
+        torch.set_num_threads(min(4, os.cpu_count() or 1))
         requested = os.environ.get('FALL_DEVICE', _settings.get('FALL_DEVICE', 'auto'))
         self.device = select_device(torch, requested)
         self.gpu_name = torch.cuda.get_device_name(0) if self.device.startswith('cuda') else None
-        logging.warning('FallGuard AI: Torch %s | device=%s | GPU=%s',
-                        torch.__version__, self.device, self.gpu_name or 'None')
-        paths = [ROOT / 'models/detection/yolo11s.pt',
-                 ROOT / 'models/pose_classification/leeyunjai-falldetect-11x.pt']
-        for p in paths:
-            if not p.is_file():
-                raise FileNotFoundError(f'Thieu model: {p}')
-        self.person, self.fall = (YOLO(str(p)) for p in paths)
-        names = self.fall.names
-        self.fall_ids = [int(i) for i, n in names.items()
-                         if 'fall' in n.lower() and not any(x in n.lower() for x in ('non', 'not', 'no-'))]
-        if not self.fall_ids:
-            raise ValueError(f'Model khong co nhan fall: {names}')
+        logging.warning('FallGuard Pose+BiLSTM: device=%s GPU=%s', self.device, self.gpu_name or 'None')
+
+        checkpoint_path = Path(checkpoint_path)
+        if not checkpoint_path.is_file():
+            raise FileNotFoundError(f'Missing BiLSTM checkpoint: {checkpoint_path}')
+        # Bundle is converted to tensors, so safe weights_only=True works on PyTorch >=2.6.
+        ckpt = torch.load(str(checkpoint_path), map_location='cpu', weights_only=True)
+        dim = int(ckpt['model_config']['dim'])
+        hidden = int(ckpt['model_config']['hidden'])
+        self.frames = int(ckpt['frames'])
+        self.img_size = int(ckpt['img_size'])
+        if (dim, self.frames) != (55, 32) or list(ckpt['class_names']) != ['NORMAL', 'FALL']:
+            raise ValueError('Checkpoint does not match 32x55 NORMAL/FALL training pipeline.')
+        self.model = FallLSTM.build(torch, dim, hidden).to(self.device)
+        self.model.load_state_dict(ckpt['model_state_dict'], strict=True)
+        self.model.eval()
+        self.mean = torch.as_tensor(ckpt['scaler_mean'], dtype=torch.float32, device=self.device).view(1, 1, dim)
+        self.scale = torch.as_tensor(ckpt['scaler_scale'], dtype=torch.float32, device=self.device).view(1, 1, dim)
+        if not torch.isfinite(self.mean).all() or not torch.isfinite(self.scale).all() or (self.scale <= 0).any():
+            raise ValueError('Invalid preprocessing scaler in checkpoint')
+        if pose is not None:
+            self.pose = pose
+        elif POSE_WEIGHTS.is_file():
+            self.pose = YOLO(str(POSE_WEIGHTS))
+        else:
+            # Ultralytics will download the official 6MB model on first use.
+            # Models from the old two-YOLO pipeline are NEVER loaded.
+            logging.warning('Missing %s: downloading yolo11n-pose.pt on first launch.', POSE_WEIGHTS)
+            self.pose = YOLO('yolo11n-pose.pt')
+            # Place downloaded weight at the documented model path for offline restarts.
+            downloaded = Path('yolo11n-pose.pt')
+            if downloaded.is_file():
+                try:
+                    import shutil
+                    POSE_WEIGHTS.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(downloaded, POSE_WEIGHTS)
+                    if downloaded.resolve() != POSE_WEIGHTS.resolve():
+                        downloaded.unlink()
+                except OSError as exc:
+                    logging.warning('Pose model runs, but cannot cache weights under models/pose/: %s', exc)
+        self._track_mode = True
+        logging.warning('FallGuard loaded new LSTM checkpoint: %s | window=%d | pose_imgsz=%d',
+                        checkpoint_path, self.frames, self.img_size)
+
+    def reset(self):
+        """Reset YOLO ByteTrack state on new camera stream/analysis session."""
+        if hasattr(self.pose, 'predictor') and self.pose.predictor is not None:
+            for tracker in getattr(self.pose.predictor, 'trackers', []):
+                try:
+                    tracker.reset()
+                except Exception:
+                    logging.warning('Unable to reset pose tracker; fallback association will be used.')
 
     def predict(self, frame):
         start = time.perf_counter()
         h, w = frame.shape[:2]
-        result = self.person.predict(frame, classes=[0], conf=0.3, imgsz=640+64,
-                                     max_det=12, device=self.device, verbose=False)[0]
-        detections, crops, indices = [], [], []
-        for box, conf in zip(result.boxes.xyxy.cpu().tolist(), result.boxes.conf.cpu().tolist()):
-            crop = square_crop(frame, box)
-            detections.append({'box': [box[0]/w, box[1]/h, box[2]/w, box[3]/h],
-                               'person_confidence': round(conf, 4), 'fall_score': None})
-            if crop is not None:
-                indices.append(len(detections)-1)
-                crops.append(crop)
-        # Small batches bound memory even when several people appear.
-        for offset in range(0, len(crops), 2):
-            results = self.fall.predict(crops[offset:offset+2], conf=0.05,
-                                       classes=self.fall_ids, imgsz=640,
-                                       device=self.device, verbose=False)
-            for index, result in zip(indices[offset:offset+2], results):
-                score = float(result.boxes.conf.max()) if len(result.boxes) else 0.0
-                detections[index]['fall_score'] = round(score, 4)
+        # Track stable person IDs when available, fall back to spatial matching.
+        # Always use pose model and its 17 COCO joint coordinates.
+        if self._track_mode:
+            try:
+                result = self.pose.track(frame, persist=True, conf=.25, imgsz=self.img_size,
+                                         max_det=12, device=self.device, tracker='bytetrack.yaml', verbose=False)[0]
+            except Exception as exc:
+                logging.warning('ByteTrack dependency unavailable (%s); using pose.predict instead.', exc)
+                self._track_mode = False
+                result = self.pose.predict(frame, conf=.25, imgsz=self.img_size,
+                                           max_det=12, device=self.device, verbose=False)[0]
+        else:
+            result = self.pose.predict(frame, conf=.25, imgsz=self.img_size,
+                                       max_det=12, device=self.device, verbose=False)[0]
+        detections = []
+        if result.boxes is not None and result.keypoints is not None:
+            boxes = result.boxes.xyxy.detach().cpu().numpy()
+            conf = result.boxes.conf.detach().cpu().numpy()
+            pts = result.keypoints.xyn.detach().cpu().numpy()
+            joint_scores = (result.keypoints.conf.detach().cpu().numpy()
+                            if result.keypoints.conf is not None else np.ones((len(boxes), 17), dtype=np.float32))
+            track_ids = result.boxes.id
+            ids = track_ids.int().cpu().tolist() if track_ids is not None else [None] * len(boxes)
+            for i, (box, person_conf) in enumerate(zip(boxes, conf)):
+                if i >= len(pts) or i >= len(joint_scores):
+                    continue
+                vec, valid = feature_from_pose(box, pts[i], joint_scores[i], h, w)
+                normalized_box = [round(float(box[0] / w), 6), round(float(box[1] / h), 6),
+                                  round(float(box[2] / w), 6), round(float(box[3] / h), 6)]
+                detections.append({'box': normalized_box, 'person_confidence': round(float(person_conf), 4),
+                                   'pose_feature': vec, 'pose_valid': valid,
+                                   'tracking_id': ids[i], 'fall_score': None})
         return {'detections': detections, 'inference_ms': round((time.perf_counter()-start)*1000),
                 'width': w, 'height': h, 'device': self.device}
+
+    def score_sequences(self, sequences):
+        """Return P(FALL) for (N,32,55) input; standardized with checkpoint scaler."""
+        if not sequences:
+            return []
+        data = np.stack(sequences).astype(np.float32)
+        if data.ndim != 3 or data.shape[1:] != (self.frames, 55):
+            raise ValueError(f'Expected sequence shape (N,{self.frames},55), got {data.shape}')
+        with self.torch.inference_mode():
+            x = self.torch.as_tensor(data, device=self.device)
+            logits = self.model((x - self.mean) / self.scale)
+            probs = logits.softmax(dim=1)[:, 1].cpu().tolist()
+        return [float(x) for x in probs]

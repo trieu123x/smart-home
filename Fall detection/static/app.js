@@ -63,7 +63,7 @@ function renderTracks(){
     const x=ox+b[0]*vw,y=oy+b[1]*vh,bw=(b[2]-b[0])*vw,bh=(b[3]-b[1])*vh;
     const color=t.danger?'#ff4e59':t.pending?'#ffc34d':'#40db9f';
     ctx.strokeStyle=color;ctx.strokeRect(x,y,bw,bh);
-    const label=t.danger?'ĐÃ XÁC NHẬN NGÃ':t.pending?`Đang xác nhận ${Number(t.fall_elapsed||0).toFixed(1)} / 5s`:`Người #${t.id}`;
+    const label=t.danger?'CẢNH BÁO TÉ NGÃ':t.pending?`Đang xác nhận ${t.streak||0}/${camera?.confirmations||3}`:t.state==='COLLECTING'?`Thu thập pose ${t.window_frames||0}/${t.window_target||32}`:`Người #${t.id}`;
     const labelWidth=ctx.measureText(label).width+14;
     ctx.fillStyle='#10242bcc';ctx.fillRect(x,Math.max(0,y-24),labelWidth,22);
     ctx.fillStyle=color;ctx.fillText(label,x+7,Math.max(15,y-8));
@@ -113,11 +113,11 @@ async function refresh(){
     alarm(danger&&!document.hidden);
     if(!live)statusText('Chưa có tín hiệu','Kiểm tra USB debugging, quyền ADB và CCTV_URL=adb:back trong .env.');
     else if(!camera.analysis_enabled)statusText('Chỉ xem trực tiếp','AI đang tắt, hình ảnh vẫn truyền bình thường.');
-    else if(danger)statusText('Đã xác nhận ngã','Người nằm/ngã liên tục ít nhất 5 giây.',true);
+    else if(danger)statusText('Đã xác nhận ngã','BiLSTM đã xác nhận nhiều cửa sổ chuyển động có dấu hiệu té ngã.',true);
     else if(tracks.some(t=>t.pending)){
-      const elapsed=Math.max(...tracks.filter(t=>t.pending).map(t=>Number(t.fall_elapsed)||0));
-      statusText('Đang kiểm tra tư thế',`Phát hiện nghi ngã ${elapsed.toFixed(1)}/5.0 giây. Chưa gửi cảnh báo.`);
-    }else statusText('Đang phân tích',tracks.length? 'Chưa xác nhận ngã.':'Chưa phát hiện người.');
+      const count=Math.max(...tracks.filter(t=>t.pending).map(t=>Number(t.streak)||0));
+      statusText('Đang xác nhận ngã',`Model BiLSTM nghi ngờ té ngã: ${count}/${camera.confirmations} cửa sổ. Chưa gửi cảnh báo.`);
+    }else statusText('Đang phân tích',tracks.length? 'Đang thu thập keypoints và phân tích chuyển động.':'Chưa phát hiện người.');
     $('peopleCount').textContent=camera.analysis_enabled?String(tracks.length):'—';
     displayEvents(data.events||[]);renderTracks();
   }catch(e){$('serverDot').classList.remove('ready');$('serverState').textContent='Mất kết nối';notice(e.message);}
