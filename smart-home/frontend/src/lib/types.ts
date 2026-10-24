@@ -78,6 +78,8 @@ export interface LiveSensors {
   temp?: number;
   hum?: number;
   gas?: number;
+  /** MQ-2 baseline measured at boot; the firmware alarms at gas_base + 500. */
+  gas_base?: number;
   gas_alarm?: boolean;
   motion?: boolean;
   mode?: SystemMode;

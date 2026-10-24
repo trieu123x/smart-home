@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { WS_URL, api } from "@/lib/api";
+import { appendSample, type LiveSample } from "@/lib/sensorLogic";
 import type {
   ActivityBucket,
   Automation,
@@ -28,6 +29,8 @@ import type {
 interface DashboardState {
   /** Cảm biến + chế độ + kết nối của ESP32 (qua MQTT), cập nhật realtime. */
   live: LiveState | null;
+  /** Live samples from the last 5 minutes (in memory only), for the sparklines. */
+  liveHistory: LiveSample[];
   summary: Summary | null;
   devices: Device[];
   events: SmartEvent[];
@@ -50,8 +53,29 @@ interface DashboardState {
 
 const DashboardContext = createContext<DashboardState | null>(null);
 
+const finite = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+/** Turns a live state into a sparkline sample, or null when the ESP32 has nothing fresh. */
+function toSample(state: LiveState): LiveSample | null {
+  const s = state.sensors;
+  if (!state.esp_online || Object.keys(s).length === 0) return null;
+  const gas = finite(s.gas);
+  const base = finite(s.gas_base);
+  return {
+    t: Date.now() - (state.age ?? 0) * 1000,
+    temp: finite(s.temp),
+    hum: finite(s.hum),
+    ldr: finite(s.ldr),
+    gas,
+    gasDelta: gas !== undefined && base !== undefined ? gas - base : undefined,
+    motion: typeof s.motion === "boolean" ? s.motion : undefined,
+  };
+}
+
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [live, setLive] = useState<LiveState | null>(null);
+  const [live, setLiveState] = useState<LiveState | null>(null);
+  const [liveHistory, setLiveHistory] = useState<LiveSample[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [events, setEvents] = useState<SmartEvent[]>([]);
@@ -63,6 +87,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Stores the live state and records it in the sparkline buffer. */
+  const setLive = useCallback((state: LiveState) => {
+    setLiveState(state);
+    const sample = toSample(state);
+    if (sample) setLiveHistory((current) => appendSample(current, sample));
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -96,7 +127,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setLive]);
 
   /** Gộp nhiều tin realtime liên tiếp thành một lần gọi lại API. */
   const scheduleRefresh = useCallback(() => {
@@ -173,12 +204,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (retry) clearTimeout(retry);
       socket?.close();
     };
-  }, [scheduleRefresh]);
+  }, [scheduleRefresh, setLive]);
 
   const setMode = useCallback(async (mode: SystemMode) => {
     const updated = await api.setMode(mode);
     setLive(updated);
-  }, []);
+  }, [setLive]);
 
   const sendCommand = useCallback(async (device: ControlKey, state: boolean) => {
     await api.sendCommand(device, state);
@@ -228,6 +259,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const value: DashboardState = {
     live,
+    liveHistory,
     summary,
     devices,
     events,

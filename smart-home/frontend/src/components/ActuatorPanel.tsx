@@ -4,6 +4,8 @@ import clsx from "clsx";
 import { Bell, Fan, Lightbulb, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { CHART_COLORS } from "@/lib/chartTheme";
+import { actuatorReason } from "@/lib/sensorLogic";
 import type { ControlKey } from "@/lib/types";
 
 import { useDashboard } from "./DashboardProvider";
@@ -22,6 +24,8 @@ export function ActuatorPanel() {
 
   const sensors = live?.sensors ?? {};
   const canControl = live?.mode === "manual" && !!live.esp_online;
+  // Offline keeps the last state, dimmed, so it never looks like "off"
+  const stale = !live?.esp_online;
 
   // Khi ESP32 báo đúng trạng thái đã yêu cầu thì bỏ trạng thái chờ
   useEffect(() => {
@@ -60,27 +64,45 @@ export function ActuatorPanel() {
   return (
     <section className="card">
       <h2 className="card-title">Thiết bị</h2>
-      <div className="mt-3 divide-y divide-white/5">
+      <div className="mt-3 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
         {ITEMS.map(({ key, label, icon: Icon }) => {
           const on = pending[key] ?? !!sensors[key];
+          const color = CHART_COLORS[key];
+          const reason = actuatorReason(key, { ...sensors, mode: sensors.mode ?? live?.mode });
           return (
-            <div key={key} className="flex items-center gap-3 py-3">
+            <div
+              key={key}
+              className={clsx(
+                "flex flex-wrap items-center gap-3 rounded-2xl border p-4 transition-colors duration-300",
+                !on && "border-white/5 bg-white/[0.03]",
+                stale && "opacity-60",
+              )}
+              style={on ? { backgroundColor: `${color}1f`, borderColor: `${color}4d` } : undefined}
+            >
               <span
                 className={clsx(
-                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition",
-                  on ? "bg-brand-500/15 text-brand-400" : "bg-white/5 text-slate-400",
+                  "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-300",
+                  !on && "bg-white/5 text-slate-400",
                 )}
+                style={on ? { color, backgroundColor: `${color}26` } : undefined}
               >
-                <Icon size={18} className={key === "fan" && on ? "animate-spin" : undefined} />
+                <Icon
+                  size={18}
+                  className={clsx(
+                    on && !stale && key === "fan" && "animate-spin motion-reduce:animate-none",
+                    on && !stale && key === "buzzer" && "animate-pulse motion-reduce:animate-none",
+                  )}
+                />
               </span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[6rem] flex-1">
                 <p className="text-sm font-semibold text-white">{label}</p>
-                <p className={clsx("text-xs", on ? "text-brand-400" : "text-slate-500")}>
-                  {on ? "ĐANG BẬT" : "ĐANG TẮT"}
+                <p className={clsx("text-xs", !on && "text-slate-400")} style={on ? { color } : undefined}>
+                  {on ? "Đang bật" : "Đang tắt"}
                   {key in pending ? " · đang gửi lệnh..." : ""}
                 </p>
+                <p className="truncate text-xs text-slate-400">{on ? (reason ?? "—") : "—"}</p>
               </div>
-              <div className="flex rounded-xl border border-white/10 p-1">
+              <div className="ml-auto flex rounded-xl border border-white/10 p-1">
                 {([true, false] as const).map((target) => (
                   <button
                     key={String(target)}

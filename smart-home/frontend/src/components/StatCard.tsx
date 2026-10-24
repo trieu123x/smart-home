@@ -3,9 +3,9 @@
 import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
 
-type Tone = "default" | "good" | "warning" | "critical";
+export type Tone = "default" | "good" | "warning" | "critical";
 
-const TONES: Record<Tone, { icon: string; value: string }> = {
+export const TONES: Record<Tone, { icon: string; value: string }> = {
   default: { icon: "bg-white/5 text-slate-300", value: "text-white" },
   good: { icon: "bg-brand-500/15 text-brand-400", value: "text-white" },
   warning: { icon: "bg-amber-500/15 text-amber-400", value: "text-amber-300" },
