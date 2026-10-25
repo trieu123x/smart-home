@@ -1,1 +1,4 @@
 *.zip
+CLAUDE.local.md
+.claude/settings.local.json
+*.tsbuildinfo

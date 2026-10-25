@@ -1,0 +1,3 @@
+# Extra packages for benchmark/ on top of ../requirements.txt.
+# yt-dlp follows YouTube changes closely; keep it on a recent release.
+yt-dlp>=2026.10,<2027

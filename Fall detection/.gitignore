@@ -23,6 +23,9 @@
 /snapshots/
 /data/
 /logs/
+/benchmark/data/
+/benchmark/weights/
+/benchmark/results/
 *.mp4
 *.mkv
 *.avi

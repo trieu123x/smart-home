@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "PowerShell(npx tsc --noEmit)",
+      "Bash(npm run build)",
+      "PowerShell(npm run build)",
+      "Bash(.venv/Scripts/python -m compileall *)",
+      "PowerShell(.venv\\Scripts\\python -m compileall *)",
+      "Bash(.venv/Scripts/python -m pytest *)",
+      "PowerShell(.venv\\Scripts\\python -m pytest *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "PowerShell(git push *)",
+      "Edit(package-lock.json)",
+      "Edit(pnpm-lock.yaml)",
+      "Edit(yarn.lock)",
+      "Edit(bun.lockb)",
+      "Edit(poetry.lock)",
+      "Edit(Cargo.lock)",
+      "Edit(go.sum)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(!.env.sample)",
+      "Read(!.env.template)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(!.env.example)",
+      "Edit(!.env.sample)",
+      "Edit(!.env.template)",
+      "Read(*.pem)",
+      "Read(*.key)",
+      "Read(*.p12)",
+      "Read(*.pfx)",
+      "Read(*.keystore)",
+      "Read(*.jks)",
+      "Read(id_rsa*)",
+      "Read(id_ed25519*)",
+      "Read(secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.kube/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-commands.mjs"],
+            "timeout": 10,
+            "statusMessage": "Checking command safety"
+          }
+        ]
+      }
+    ]
+  }
+}

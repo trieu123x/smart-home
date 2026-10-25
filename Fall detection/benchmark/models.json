@@ -1,0 +1,249 @@
+{
+  "stage1": [
+    {
+      "id": "yolo11s",
+      "source_url": "https://github.com/ultralytics/assets/releases/tag/v8.3.0",
+      "files": [
+        {
+          "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt",
+          "path": "yolo11s.pt",
+          "sha256": "85a76fe86dd8afe384648546b56a7a78580c7cb7b404fc595f97969322d502d5"
+        }
+      ],
+      "license": "AGPL-3.0",
+      "trained_on": [
+        "COCO"
+      ]
+    },
+    {
+      "id": "yolo11n",
+      "source_url": "https://github.com/ultralytics/assets/releases/tag/v8.3.0",
+      "files": [
+        {
+          "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt",
+          "path": "yolo11n.pt",
+          "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1"
+        }
+      ],
+      "license": "AGPL-3.0",
+      "trained_on": [
+        "COCO"
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "id": "leeyunjai-11x",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://huggingface.co/leeyunjai/yolo11-falldetect",
+      "files": [
+        {
+          "url": "https://huggingface.co/leeyunjai/yolo11-falldetect/resolve/main/falldetect-11x.pt",
+          "path": "falldetect-11x.pt",
+          "sha256": "31ccaa58e29e8b97912c3d2d69df2f71249a15d7336c8e1e5720a31a4b62601b"
+        }
+      ],
+      "fall_labels": [
+        "Fall-Detected"
+      ],
+      "imgsz": 640,
+      "license": "not stated",
+      "trained_on": [],
+      "notes": "BASELINE (current production model, same file as models/pose_classification/leeyunjai-falldetect-11x.pt). Model card states no license or training data; class name matches Roboflow fall-detection-ca3o8 (unconfirmed). Kept at the user's request."
+    },
+    {
+      "id": "syed-le2i-11n",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://github.com/SyedBurhanAhmed/Real-Time-Fall-Detection-using-YOLO",
+      "files": [
+        {
+          "url": "https://github.com/SyedBurhanAhmed/Real-Time-Fall-Detection-using-YOLO/raw/main/Model/weights/best.pt",
+          "path": "best.pt",
+          "sha256": "c4d360ab58b942ef2c78d46e8cf734bfe5ff15210e1b90634ca1474e7ae3a6f4"
+        }
+      ],
+      "fall_labels": [
+        "fall"
+      ],
+      "imgsz": 640,
+      "license": "MIT (data CC BY 4.0)",
+      "trained_on": [
+        "Le2i",
+        "Roboflow le2iahlam/le2i-ahlam"
+      ],
+      "notes": "YOLO11n, 100 epochs, IEEE paper. Classes non-fall / fall."
+    },
+    {
+      "id": "valentin-ca3o8-v8n",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://github.com/ValentinOzeel/Fall_Dectection_App",
+      "files": [
+        {
+          "url": "https://github.com/ValentinOzeel/Fall_Dectection_App/raw/main/results/final_training/weights/best.pt",
+          "path": "best.pt",
+          "sha256": "419754bde1b5496097ae4b03e41077b5f93a6d51287fb5fea10d55c7f8f6f1d8"
+        }
+      ],
+      "fall_labels": [
+        "fall_detected"
+      ],
+      "imgsz": 640,
+      "license": "no LICENSE file (data CC BY 4.0)",
+      "trained_on": [
+        "Roboflow fall-detection-ca3o8",
+        "Roboflow wuyujie/fall-7lbue"
+      ],
+      "notes": "YOLOv8n, 175 epochs. Class is fall_detected in the checkpoint (README says Fall-Detected). Same dataset family as the baseline."
+    },
+    {
+      "id": "melih-3cls-11n",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://huggingface.co/melihuzunoglu/human-fall-detection",
+      "files": [
+        {
+          "url": "https://huggingface.co/melihuzunoglu/human-fall-detection/resolve/main/best.pt",
+          "path": "best.pt",
+          "sha256": "3f56ad30358d5c63bf8dbc0c1299cf68818c3d291dfb10c94107b94110aadd4c"
+        }
+      ],
+      "fall_labels": [
+        "fallen"
+      ],
+      "imgsz": 640,
+      "license": "AGPL-3.0",
+      "trained_on": [
+        "Roboflow (custom, unnamed)"
+      ],
+      "notes": "YOLO11n with classes fallen / sitting / standing; score = fallen confidence."
+    },
+    {
+      "id": "jerryg-v8x-cls",
+      "kind": "classify",
+      "backend": "ultralytics",
+      "source_url": "https://huggingface.co/JerryG-TAMU/YOLO_falldown",
+      "files": [
+        {
+          "url": "https://huggingface.co/JerryG-TAMU/YOLO_falldown/resolve/main/best.pt",
+          "path": "best.pt",
+          "sha256": "857d089c62d22344ffca192d70c080619274533cd848b31b495d3fc285fe4606"
+        }
+      ],
+      "fall_labels": [
+        "pos"
+      ],
+      "imgsz": 128,
+      "license": "not stated",
+      "trained_on": [
+        "own set (458 train / 106 test images, TAMU/UTSA)"
+      ],
+      "notes": "YOLOv8x-cls trained at 128 px; classes neg / pos (pos = fall per picam.py)."
+    },
+    {
+      "id": "pose-rule-yolo11s",
+      "kind": "pose",
+      "backend": "ultralytics-rule",
+      "source_url": "https://github.com/ultralytics/assets/releases/tag/v8.3.0",
+      "files": [
+        {
+          "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s-pose.pt",
+          "path": "yolo11s-pose.pt",
+          "sha256": "1060bda4a27012060eca246f9b2adeea22eabb045a1e58f8d229be29b7ebc2ba"
+        }
+      ],
+      "fall_labels": [],
+      "imgsz": 640,
+      "license": "AGPL-3.0",
+      "trained_on": [
+        "COCO-Pose"
+      ],
+      "notes": "Official YOLO11s-pose keypoints on the crop + hand-written torso-tilt / aspect rule (adapters.pose_rule_score). No fall training data."
+    },
+    {
+      "id": "bertnardo-v8n",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://www.kaggle.com/models/bertnardomariouskono/fall-detection-yolov8",
+      "files": [
+        {
+          "url": "https://www.kaggle.com/api/v1/models/bertnardomariouskono/fall-detection-yolov8/pyTorch/yolov8-nano-best-weights/1/download/safeguard_best.pt",
+          "path": "safeguard_best.pt",
+          "sha256": "3103604dc036a881a826e17a2947f45b0cd24ccd90d6d1647f4b200f45f75cce",
+          "auth": "kaggle"
+        }
+      ],
+      "fall_labels": [
+        "Fall Detected"
+      ],
+      "imgsz": 640,
+      "license": "Apache 2.0 (as stated on Kaggle)",
+      "trained_on": [],
+      "notes": "YOLOv8n \"SafeGuard Vision\", classes Fall Detected / Walking / Sitting; self-reported mAP50 0.928. Training set not named. Checkpoint classes: Fall Detected / Walking / Sitting (data.yaml from a Kaggle notebook)."
+    },
+    {
+      "id": "khoa05ai-v8m",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://www.kaggle.com/models/khoa05ai/yolov8m-falldetection-3classes-v1",
+      "files": [
+        {
+          "url": "https://www.kaggle.com/api/v1/models/khoa05ai/yolov8m-falldetection-3classes-v1/pyTorch/default/1/download/best.pt",
+          "path": "best.pt",
+          "sha256": "109d2629d7f0a48c448f105fb55b44d0a95642ec2ed470acb620dae25078e79d",
+          "auth": "kaggle"
+        }
+      ],
+      "fall_labels": [
+        "fall"
+      ],
+      "imgsz": 640,
+      "license": "CC0 (as stated on Kaggle)",
+      "trained_on": [],
+      "notes": "YOLOv8m with 3 classes; no model card. Checkpoint classes: fall / sit / stand (dataset folder 3_classes_v3-1)."
+    },
+    {
+      "id": "doquanganh-falldetect",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://www.kaggle.com/models/doquanganh0812/falldetect",
+      "files": [
+        {
+          "url": "https://www.kaggle.com/api/v1/models/doquanganh0812/falldetect/other/default/1/download/best.pt",
+          "path": "best.pt",
+          "sha256": "d891ec6247b9688b53aa0545b4a90a9c59c8645713dc339e828b59f9d8bd7a94",
+          "auth": "kaggle"
+        }
+      ],
+      "fall_labels": [
+        "Fall-Detected"
+      ],
+      "imgsz": 640,
+      "license": "Apache 2.0 (as stated on Kaggle)",
+      "trained_on": [],
+      "notes": "Ultralytics best.pt; no model card. Single class Fall-Detected; dataset folder Fall-Detection-2 (Roboflow export naming, same class name as the baseline)."
+    },
+    {
+      "id": "kamalchibrani-v8",
+      "kind": "yolo-detect",
+      "backend": "ultralytics",
+      "source_url": "https://huggingface.co/kamalchibrani/yolov8_fall_detection_25",
+      "files": [
+        {
+          "url": "https://huggingface.co/kamalchibrani/yolov8_fall_detection_25/resolve/main/best.pt",
+          "path": "best.pt",
+          "sha256": "4a7eba2e982955d7c5f2ea65968f23332c123275116e75e2bac915f40ba749e0"
+        }
+      ],
+      "fall_labels": [
+        "Fall-Detected"
+      ],
+      "imgsz": 416,
+      "license": "OpenRAIL (as stated on Hugging Face)",
+      "trained_on": [],
+      "notes": "YOLOv8 best.pt; no model card. Single class Fall-Detected, trained at 416 px; dataset folder Fall-Detection-4 (Roboflow export naming, same class name as the baseline)."
+    }
+  ]
+}
