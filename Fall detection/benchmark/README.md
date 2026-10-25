@@ -118,18 +118,20 @@ Unit tests (offline, no models): `.venv/Scripts/python -m pytest -q tests/test_b
 
 ## Weights in the repo
 
-The repo is public, so it only tracks the weights of the recommended pipelines that state a license (force-added past
-`.gitignore`, sha256 pinned in `models.json`):
+The repo tracks the weights of the recommended pipelines (force-added past `.gitignore`, sha256 pinned in `models.json`):
 
 | File | Role | Stated license |
 |--|--|--|
 | `weights/yolo11s/yolo11s.pt` | stage 1 `prod` / `lowconf` | AGPL-3.0 (Ultralytics) |
 | `weights/pose-rule-yolo11s/yolo11s-pose.pt` | stage 1 `pose` (recommended) | AGPL-3.0 (Ultralytics) |
 | `weights/bertnardo-v8n/safeguard_best.pt` | stage 2 with no false alarms (recommended for the current pipeline) | Apache 2.0 as stated on Kaggle; an Ultralytics fine-tune, so AGPL-3.0 in practice |
+| `weights/jerryg-v8x-cls/best.pt` | stage 2 of the recommended full pipeline (107 MB, **Git LFS**) | none stated by the author (JerryG-TAMU on Hugging Face) |
 
-`jerryg-v8x-cls` (stage 2 of the recommended full pipeline, 107 MB) states no license, so it is not redistributed here.
-Run `fetch_models.py --only jerryg-v8x-cls` to download it from Hugging Face; the pinned sha256 is checked.
-`fetch_models.py` downloads every other candidate too (the Kaggle ones need `KAGGLE_API_TOKEN`).
+- **Git LFS:** `jerryg-v8x-cls/best.pt` is larger than GitHub's 100 MB limit, so it is stored with Git LFS (see `.gitattributes`).
+  Install `git-lfs` before cloning, or run `git lfs pull` after cloning. Without it the file is a small pointer, and
+  the sha256 check refuses to load it.
+- **License:** its author states no license. Keep the repo private before sharing it outside the course team.
+- **Other candidates:** `fetch_models.py` downloads them, and also this file from Hugging Face if needed. The Kaggle ones need `KAGGLE_API_TOKEN`.
 
 ## Safety
 
