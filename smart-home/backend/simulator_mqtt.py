@@ -31,11 +31,16 @@ args = parser.parse_args()
 P = args.prefix if args.prefix.endswith("/") else args.prefix + "/"
 T_SENSORS, T_STATUS, T_MODE, T_CMD = P + "sensors", P + "status", P + "mode", P + "cmd/"
 
+# Like the firmware: baseline measured at boot, alarm above baseline + GAS_ON_OFFSET
+GAS_BASE = 800
+GAS_ON_OFFSET = 500
+
 state = {
     "mode": "auto",
     "light": False, "fan": False, "buzzer": False,
     "manual": {"light": False, "fan": False, "buzzer": False},
     "gas_leak": False, "motion": False, "dark": False,
+    "fan_cool": False,  # cooling half of the fan logic, kept apart from gas venting like the firmware
 }
 lock = threading.Lock()
 
@@ -97,16 +102,17 @@ try:
             temp = round(29.5 + 3.0 * math.sin(tick / 30) + random.uniform(-0.2, 0.2), 1)
             hum = round(66 + 5 * math.cos(tick / 40) + random.uniform(-0.5, 0.5), 1)
             ldr = 3200 if state["dark"] else 900
-            gas = 2600 if state["gas_leak"] else 800 + random.randint(-15, 15)
-            gas_alarm = gas > 1300
+            gas = 2600 if state["gas_leak"] else GAS_BASE + random.randint(-15, 15)
+            gas_alarm = gas > GAS_BASE + GAS_ON_OFFSET
             motion = state["motion"]
 
             if state["mode"] == "auto":
                 state["light"] = motion and state["dark"]
                 if temp >= 31.5:
-                    state["fan"] = True
+                    state["fan_cool"] = True
                 elif temp <= 28.0:
-                    state["fan"] = False
+                    state["fan_cool"] = False
+                state["fan"] = state["fan_cool"] or gas_alarm
                 state["buzzer"] = gas_alarm
             else:
                 for k in ("light", "fan", "buzzer"):
@@ -114,7 +120,7 @@ try:
 
             payload = {
                 "ldr": ldr + random.randint(-20, 20), "dark": state["dark"],
-                "temp": temp, "hum": hum, "gas": gas, "gas_alarm": gas_alarm,
+                "temp": temp, "hum": hum, "gas": gas, "gas_base": GAS_BASE, "gas_alarm": gas_alarm,
                 "motion": motion, "mode": state["mode"],
                 "light": state["light"], "fan": state["fan"], "buzzer": state["buzzer"],
             }

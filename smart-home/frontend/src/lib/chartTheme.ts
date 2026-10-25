@@ -11,6 +11,10 @@ export const CHART_COLORS = {
   motion: "#3987e5",
   automation: "#199e70",
   fall: "#e66767",
+  // Actuator tile tints, reusing the sensor hues above
+  light: "#c98500",
+  fan: "#3987e5",
+  buzzer: "#e66767",
 } as const;
 
 export const AXIS_COLOR = "#64748b";

@@ -1,8 +1,8 @@
 """Cau noi MQTT <-> FastAPI, dung CUNG giao thuc voi ban Django (firmware ESP32 khong can sua).
 
 Topic (prefix mac dinh `ptit_sh_k7x2q9/home/`):
-  <prefix>sensors     ESP32 -> server : JSON {ldr, dark, temp, hum, gas, gas_alarm, motion,
-                                              mode, light, fan, buzzer}
+  <prefix>sensors     ESP32 -> server : JSON {ldr, dark, temp, hum, gas, gas_base, gas_alarm,
+                                              motion, mode, light, fan, buzzer}
   <prefix>status      ESP32 -> server : "online" / "offline" (Last Will)
   <prefix>mode        hai chieu, retained : "auto" / "manual"
   <prefix>cmd/<dev>   server -> ESP32 : "ON" / "OFF" (dev = light | fan | buzzer)
