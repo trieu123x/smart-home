@@ -4,6 +4,8 @@ Checks sha256 when it is set; prints the hash when it is empty so it can be pinn
 `--pin` writes those hashes back into models.json.
 
 Files with `"auth": "kaggle"` need a Kaggle API token in the KAGGLE_API_TOKEN environment variable.
+Files with `"local": true` (fine-tuned weights from finetune/kaggle_finetune.py pull) are never downloaded,
+only checked against their pin; a mismatching local file is reported, not deleted.
 
 Usage (from `Fall detection/`): .venv/Scripts/python -I benchmark/fetch_models.py [--only id1,id2] [--pin]
 """
@@ -130,7 +132,18 @@ def main(argv=None):
             try:
                 dest = safe_dest(entry['id'], file['path'])
                 fresh = not dest.is_file()
-                if fresh:
+                if file.get('local'):   # produced here (kaggle_finetune.py pull): verify only, never download
+                    if fresh and entry['id'] not in only:   # optional for the v3 setup; required when asked for
+                        counts['missing'] += 1
+                        print(f'[SKIP] {label}: local file not produced yet (finetune/kaggle_finetune.py pull)')
+                        continue
+                    if fresh:
+                        raise FileNotFoundError(f'local file {dest} is missing (run finetune/kaggle_finetune.py pull)')
+                    digest = sha256_of(dest)
+                    if file.get('sha256') and digest != file['sha256'].lower():
+                        raise ValueError(f'sha256 mismatch: got {digest}, expected {file["sha256"]}')
+                    fresh = False
+                elif fresh:
                     print(f'[GET] {label} <- {file["url"]}', flush=True)
                     digest = download(file['url'], dest, sha256=file.get('sha256'), auth=file.get('auth'))
                 else:

@@ -1,0 +1,21 @@
+clip_id,posture,fall_crops,note
+yt_carehome_chair,skip,keep,0-6 s the woman is bent over and then slumped across the armchair half-kneeling (neither upright nor seated); she is still lying at 26 s
+gmd_s3_fall05,normal,keep,standing upright at 0-2.7 s before the fall; no frames after fall_end (clip ends ~10 s)
+gmd_s3_fall07,normal,keep,standing upright in the only pre-fall frames (0-0.5 s); clip ends inside the edge window after the fall
+gmd_s3_fall18,sit,keep,sitting on the bed edge at 0-3.7 s before standing up and falling; clip ends right after fall_end
+urfd_fall01_cam1,normal,keep,frames 0-2.2 s are an empty room (the person walks in at ~2.5 s); clip ends inside the edge window
+urfd_fall10_cam1,sit,keep,overhead view at 0 s shows him seated on the chair that is visible at the right in later frames; only ~0.8 s lies before the interval
+urfd_fall20_cam1,sit,keep,overhead view at 0 s shows him seated on a chair with hands on knees; only ~0.07 s lies outside the interval
+gmd_s1_adl01,skip,keep,sits on the bed at 0-1 s then lies on the bed from ~2 s to the end
+gmd_s1_adl15,skip,keep,upright or bending at 0-3 s then sitting on the chair at 4-7 s (about half and half)
+gmd_s3_adl06,skip,keep,deep forward bends at 0-5 s then sits on the floor at 6-8 s (about one third sitting)
+urfd_adl30_cam0,skip,keep,walks in at 2-5 s then goes onto hands and knees at 6-7 s and lies curled on the floor 8-13 s
+yt_karate_hall,skip,keep,upright sparring at 0-5.5 s but the last frame (34 s) shows the instructor still lying with a helper kneeling over him
+yt_drunk_work,normal,keep,the worker walks and staggers upright at 0-9 s; no frames after fall_end
+yt_hospital_floor,skip,keep,0-5 s mixes patients seated on benches and in a wheelchair with standing people; at 29 s the patient still lies among kneeling doctors
+yt_neg_crew_floor,skip,keep,"throughout 0-100 s many people sit on chairs in the foreground while others walk, and crew members lie on the floor ~19-80 s"
+yt_neg_living_dance,normal,keep,the man dances and spins and bends upright at 0-20 s; leaves the frame by 21 s
+yt_pizza_elder,normal,keep,the delivery woman walks up the path and stands at the door at 0-12 s; no frames after fall_end
+yt_restaurant_cpr,skip,skip,"sits at the table at 0-1 s but is already slumping off the stool at 2-3 s (3 of 7 frames), so neither sit nor normal fits; fall crops skipped: the one box stage 1 finds is the standing or bending owner, not the man on the floor"
+yt_school_aed,normal,skip,"students walk upright along the cafeteria aisle at 0-3 s; only the edge window follows the interval; fall crops skipped: the one box stage 1 finds is a passer-by or the staff kneeling for CPR, not the boy on the floor"
+gmd_s3_adl09,skip,keep,lies on the floor at 0-2 s then sits on the floor at 3-6 s and stands at 7 s
