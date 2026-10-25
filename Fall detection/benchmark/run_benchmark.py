@@ -6,7 +6,12 @@ event metrics on all three. The run writes per-pipeline frames/events CSVs; the 
 
 Usage (from `Fall detection/`):
     .venv/Scripts/python -I benchmark/run_benchmark.py [--models a,b] [--clips c1,c2] [--step 0.3]
-        [--device auto] [--stage1-variants prod,lowconf,pose] [--latency-runs 5] [--resume] [--report-only]
+        [--device auto] [--stage1-variants prod,lowconf,pose,ft] [--latency-runs 5] [--resume] [--report-only]
+        [--split test|train|all]
+
+`--split` restricts the analysis to the clips of that side of benchmark/split.csv and writes it to
+results/split_<side>/ and REPORT_FINETUNE.md; scoring still runs on every selected clip, because the
+per-pipeline frames/events CSVs are shared. Without `--split` the analysis goes to results/ and REPORT.md as in v3.
 """
 import argparse
 import csv
@@ -36,13 +41,19 @@ FIGURES = BENCH / 'figures'
 PR_FIGURE = FIGURES / 'pr_stage2.png'
 MODELS_JSON = BENCH / 'models.json'
 REPORT = BENCH / 'REPORT.md'
+SPLIT_REPORT = BENCH / 'REPORT_FINETUNE.md'
+SPLITS = ('test', 'train', 'all')
+# Goal 5 of the fine-tune spec: the fine-tuned pipeline against the v3 recommendation on the same clips.
+FT_TARGET = 'jerryg-ft3|s1=ft|trk=gap1'
+FT_BASELINE = 'jerryg-v8x-cls|s1=pose|trk=gap1'
 THRESHOLD, NEEDED = 0.4, 3
 FAILURE_DUMPS = 6
 LATENCY_FRAMES = 200
 BASELINE = 'leeyunjai-11x'
 PROD = 'prod'
 # Stage-1 variants: weights id (models.json stage1 or candidates) and confidence. Same imgsz / max_det.
-STAGE1_VARIANTS = {'prod': ('yolo11s', 0.3), 'lowconf': ('yolo11s', 0.1), 'pose': ('pose-rule-yolo11s', 0.3)}
+STAGE1_VARIANTS = {'prod': ('yolo11s', 0.3), 'lowconf': ('yolo11s', 0.1), 'pose': ('pose-rule-yolo11s', 0.3),
+                   'ft': ('yolo11s-ft', 0.3)}
 CI_STATS = ['event_score', 'fall_recall', 'false_alarm_clips', 'frame_f1']
 SUMMARY_FIELDS = (['pipeline', 'model', 'kind', 'stage1', 'stage1_variant', 'tracker', 'status', 'error', 'n_frames',
                    'frame_precision', 'frame_recall', 'frame_f1', 'frame_accuracy', 'best_f1', 'best_threshold',
@@ -63,6 +74,47 @@ PAIRED_FIELDS = ['scope', 'a', 'b', 'metric', 'diff', 'lo', 'hi', 'verdict']
 
 def load_models():
     return json.loads(MODELS_JSON.read_text(encoding='utf-8'))
+
+
+def latency_file(split=None):
+    """v3 timings stay in latency.csv; runs made for a --split analysis (the fine-tune pairs, and the baseline
+    re-timed in the same session) go to latency_split.csv, so they never replace a v3 row."""
+    return RESULTS / ('latency.csv' if split is None else 'latency_split.csv')
+
+
+def local_ids(models):
+    """Entries whose files are produced here (`local: true`, the fine-tuned weights)."""
+    return {e['id'] for e in models['stage1'] + models['candidates'] if any(f.get('local') for f in e['files'])}
+
+
+class View:
+    """Where one analysis reads its clips from and writes to. split=None is the v3 analysis over every clip.
+
+    `hidden` model ids (and stage-1 variants built on them) are left out; the v3 view hides the fine-tuned
+    models, which were trained on 20 of its clips.
+    """
+
+    def __init__(self, manifest, split=None, hidden=()):
+        self.split, self.hidden = split, set(hidden)
+        self.latency = latency_file(split)
+        if split is None:
+            self.manifest, self.out, self.report, self.suffix, self.figure = manifest, RESULTS, REPORT, '', PR_FIGURE
+            return
+        if split not in SPLITS:
+            raise ValueError(f'unknown split {split!r}')
+        from benchmark.finetune.common import read_split   # lazy: the v3 Kaggle bundle ships no finetune/
+        sides = read_split()
+        missing = [r['clip_id'] for r in manifest if r['clip_id'] not in sides]
+        if missing:
+            raise ValueError(f'split.csv has no row for {missing}')
+        self.manifest = [r for r in manifest if split == 'all' or sides[r['clip_id']] == split]
+        self.out = RESULTS / f'split_{split}'
+        self.report = SPLIT_REPORT
+        self.suffix = '' if split == 'test' else '_all40' if split == 'all' else f'_{split}'
+        self.figure = FIGURES / f'pr_stage2_split_{split}.png'
+
+    def keeps(self, model, variant):
+        return model not in self.hidden and STAGE1_VARIANTS.get(variant, ('',))[0] not in self.hidden
 
 
 def write_csv(path, fields, rows):
@@ -364,19 +416,22 @@ def n_alerts(event):
     return len(event['alerts'].split(';')) if event['alerts'] else 0
 
 
-def analyze(models, manifest):
-    """Build summary, subsets, paired and the PR figure from the per-pipeline CSVs.
+def analyze(models, view):
+    """Build summary, subsets, paired and the PR figure from the per-pipeline CSVs, on the view's clips only.
     Returns (summary rows, events at 0.4 per pipeline)."""
-    rows_by_clip = {r['clip_id']: r for r in manifest}
+    rows_by_clip = {r['clip_id']: r for r in view.manifest}
     entries = {e['id']: e for e in models['candidates']}
-    latency = read_csv(RESULTS / 'latency.csv')
+    latency = read_csv(view.latency)
     p95_median = {}
     for r in latency:
         p95_median.setdefault((r['model'], r['stage1']), []).append(float(r['p95_ms']))
     summary, subsets, events04, stats, pr_curves = [], [], {}, {}, {}
     for run in read_csv(RESULTS / 'runs.csv'):
+        if not view.keeps(run['model'], run['stage1_variant']):
+            continue
         model, variant = run['model'], run['stage1_variant']
         frames = read_csv(RESULTS / f'frames_{frames_key(model, variant)}.csv') if run['status'] == 'ok' else []
+        frames = [r for r in frames if r['clip_id'] in rows_by_clip]
         if run['status'] == 'ok' and not frames:
             run = {**run, 'status': 'failed', 'error': 'frames CSV missing'}
         labels = [r['label'] for r in frames]
@@ -407,7 +462,8 @@ def analyze(models, manifest):
             base = {'pipeline': pid, 'model': model, 'kind': run['kind'], 'stage1': run['stage1'],
                     'stage1_variant': variant, 'tracker': tracker, 'status': run['status'], 'error': run['error'],
                     'p95_ms_median': fmt(statistics.median(runs_p95)) if runs_p95 else ''}
-            events = [_bools(e) for e in read_csv(RESULTS / f'events_{events_key(model, variant, tracker)}.csv')]
+            events = [_bools(e) for e in read_csv(RESULTS / f'events_{events_key(model, variant, tracker)}.csv')
+                      if e['clip_id'] in rows_by_clip]
             if base['status'] != 'ok' or not events:
                 summary.append({**base, 'status': 'failed' if base['status'] == 'ok' else base['status'],
                                 'error': base['error'] or 'events CSV missing'})
@@ -442,11 +498,12 @@ def analyze(models, manifest):
                         for r in mt.subset_breakdown(manifest_rows, frames, by_clip, THRESHOLD)]
     summary.sort(key=lambda r: (r['model'], list(STAGE1_VARIANTS).index(r['stage1_variant'])
                                 if r['stage1_variant'] in STAGE1_VARIANTS else 99, r['tracker']))
-    write_csv(RESULTS / 'summary.csv', SUMMARY_FIELDS, summary)
-    write_csv(RESULTS / 'subsets.csv', SUBSET_FIELDS, subsets)
-    write_csv(RESULTS / 'paired.csv', PAIRED_FIELDS, paired_rows(summary, entries, stats))
+    write_csv(view.out / 'summary.csv', SUMMARY_FIELDS, summary)
+    write_csv(view.out / 'subsets.csv', SUBSET_FIELDS, subsets)
+    extra = [(FT_TARGET, FT_BASELINE)] if view.split else []
+    write_csv(view.out / 'paired.csv', PAIRED_FIELDS, paired_rows(summary, entries, stats, extra))
     if pr_curves:
-        plot_pr(pr_curves)
+        plot_pr(pr_curves, view.figure)
     return summary, events04
 
 
@@ -458,12 +515,13 @@ def prod_rows(summary):
     return [r for r in summary if r['stage1_variant'] == PROD and r['tracker'] == PROD]
 
 
-def paired_rows(summary, entries, stats):
+def paired_rows(summary, entries, stats, extra=()):
     """Event-score (and F1) differences on shared resamples.
 
     Both scopes first compare the top two by rule v2 order (the tie check), then compare the rule-v2
     winner (after any tie-break) with the other side of that pair and with every production pipeline.
     stage2 scope ranks the production pipelines only; pipeline scope ranks every combination.
+    `extra` pairs (a, b) of pipeline ids are compared in scope `goal` when both are ok.
     """
     out, done = [], set()
 
@@ -490,6 +548,10 @@ def paired_rows(summary, entries, stats):
         if winner:
             for other in ranked[:2] + prod_rows(ok):
                 add(scope, winner, other)
+    by_id = {r['pipeline']: r for r in ok}
+    for a, b in extra:
+        if a in by_id and b in by_id:
+            add('goal', by_id[a], by_id[b])
     return out
 
 
@@ -501,7 +563,7 @@ def pair_is_tie(paired, scope, a, b):
     return False
 
 
-def plot_pr(curves):
+def plot_pr(curves, path=PR_FIGURE):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -519,8 +581,8 @@ def plot_pr(curves):
     ax.legend(fontsize=8, loc='lower left')
     ax.set_title('Stage-2 PR curves, stage 1 = prod (yolo11s, conf 0.3)')
     fig.tight_layout()
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    fig.savefig(PR_FIGURE, metadata={'Software': None})   # no version string: reruns give the same bytes
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, metadata={'Software': None})   # no version string: reruns give the same bytes
     plt.close(fig)
 
 
@@ -614,7 +676,44 @@ def recommendation_block(title, scope, rows, events, leaks, paired):
     return lines, winner
 
 
-def render_sections(summary, models, manifest, events):
+def goal_block(summary, paired, decides=True):
+    """Goal 5 of the fine-tune spec: FT_TARGET against FT_BASELINE on the view's clips. Only the test split
+    decides Goal 5; other views get the same table marked as reference only."""
+    rows = {r['pipeline']: r for r in summary if r['status'] == 'ok'}
+    target, base = rows.get(FT_TARGET), rows.get(FT_BASELINE)
+    if not target or not base:
+        return f'_Chưa có kết quả ok cho cả `{FT_TARGET}` và `{FT_BASELINE}`._'
+    table = md_table(['Pipeline', 'Điểm sự kiện [CI 95%]', 'Clip ngã cảnh báo', 'Clip cảnh báo sai', 'Cảnh báo sai/giờ',
+                      'F1 frame', 'p95 trung vị (ms)'],
+                     [(r['pipeline'], ci(r, 'event_score', 0), ratio(r['fall_clips_alerted'], r['fall_clips']),
+                       r['false_alarm_clips'], show(r['fa_per_hour'], 2), show(r['frame_f1'], 4),
+                       show(r['p95_ms_median'], 1)) for r in (target, base)])
+    hit = pair_row(paired, 'goal', FT_TARGET, FT_BASELINE)
+    pair = (f"Hiệu cặp `{FT_TARGET}` − `{FT_BASELINE}` = {show(hit['diff'], 0)} điểm sự kiện, CI 95% "
+            f"[{show(hit['lo'], 0)}, {show(hit['hi'], 0)}] → "
+            f"{'hoà (tie)' if hit['verdict'] == 'tie' else 'khác biệt (different)'}." if hit
+            else '_Không có CI cặp._')
+    p95 = mt._num(target.get('p95_ms_median'))
+    checks = [
+        (f"điểm sự kiện {mt.event_score(target)} ≥ {mt.event_score(base)} (baseline)",
+         mt.event_score(target) >= mt.event_score(base)),
+        (f"clip cảnh báo sai {target['false_alarm_clips']} ≤ {base['false_alarm_clips']} (baseline)",
+         int(target['false_alarm_clips']) <= int(base['false_alarm_clips'])),
+        (f"p95 trung vị {show(target.get('p95_ms_median'), 1) or 'chưa đo'} ms ≤ {mt.MAX_P95_MS:g} ms",
+         p95 <= mt.MAX_P95_MS),
+    ]
+    met = all(ok for _, ok in checks)
+    lines = [table, '', pair, ''] + [f"- {'✅' if ok else '❌'} {text}" for text, ok in checks]
+    if decides:
+        lines += ['', f"**Goal 5: {'ĐẠT' if met else 'KHÔNG ĐẠT'}** (tính tự động từ ba điều kiện trên)."]
+    else:
+        lines += ['', '_Chỉ để tham khảo: tập clip này chứa dữ liệu huấn luyện stage 2 (bị nhiễm), nên không quyết định '
+                      'Goal 5. Chỉ kết quả trên 20 clip test quyết định._']
+    return '\n'.join(lines)
+
+
+def render_sections(summary, models, view, events):
+    manifest = view.manifest
     available = {p.stem for p in fr.CLIPS.glob('*.mp4')}
     entries = {e['id']: e for e in models['candidates']}
     summary = with_license(summary, entries)
@@ -648,15 +747,16 @@ def render_sections(summary, models, manifest, events):
         ci_text.append('Resample suy biến bị bỏ > 1%: ' + ', '.join(
             f"`{r['pipeline']}` ({r['bootstrap_skipped']})" for r in skipped) + '.')
 
-    paired = read_csv(RESULTS / 'paired.csv')
-    paired_table = [(('stage 2 (s1=prod, trk=prod)' if r['scope'] == 'stage2' else 'pipeline tốt nhất'), r['a'], r['b'],
+    paired = read_csv(view.out / 'paired.csv')
+    scope_names = {'stage2': 'stage 2 (s1=prod, trk=prod)', 'pipeline': 'pipeline tốt nhất', 'goal': 'Goal 5'}
+    paired_table = [(scope_names.get(r['scope'], r['scope']), r['a'], r['b'],
                      'điểm sự kiện' if r['metric'] == 'event_score' else 'F1 frame',
                      show(r['diff'], 0 if r['metric'] == 'event_score' else 4),
                      f"[{show(r['lo'], 0 if r['metric'] == 'event_score' else 4)}, "
                      f"{show(r['hi'], 0 if r['metric'] == 'event_score' else 4)}]",
                      'hoà (tie)' if r['verdict'] == 'tie' else 'khác biệt (different)') for r in paired]
 
-    subsets = read_csv(RESULTS / 'subsets.csv')
+    subsets = read_csv(view.out / 'subsets.csv')
     by_subset = {}
     for r in subsets:
         by_subset.setdefault(r['subset'], {})[r['pipeline']] = r
@@ -672,7 +772,7 @@ def render_sections(summary, models, manifest, events):
             for m in models_ok])
 
     stage2_rows = [(r['model'], show(r['ap_stage2']), show(r['auc_stage2'])) for r in ok_prod]
-    figure = PR_FIGURE.relative_to(BENCH).as_posix()
+    figure = view.figure.relative_to(BENCH).as_posix()
 
     ok_all = [r for r in summary if r['status'] == 'ok']
     top10 = sorted(ok_all, key=lambda r: (-mt.event_score(r), -float(r['frame_f1']),
@@ -682,7 +782,7 @@ def render_sections(summary, models, manifest, events):
                   show(r['p95_ms_median'], 1), 'có' if mt._num(r.get('p95_ms_median')) <= mt.MAX_P95_MS else 'không')
                  for i, r in enumerate(top10)]
 
-    latency = read_csv(RESULTS / 'latency.csv')
+    latency = [r for r in read_csv(view.latency) if view.keeps(r['model'], r['stage1'])]
     lat = {}
     for r in latency:
         lat.setdefault((r['stage1'], r['model']), []).append(r)
@@ -718,7 +818,7 @@ def render_sections(summary, models, manifest, events):
         else:
             gain.append(f'_Không có CI cặp giữa pipeline đề xuất và `{same}`._')
 
-    return {
+    sections = {
         'clips': md_table(['clip_id', 'Nguồn', 'Góc nhìn', 'Ánh sáng', 'Loại', 'Ngã (s)', 'Ghi chú', 'File'], clip_rows),
         'candidates': md_table(['id', 'Loại', 'Nguồn', 'License', 'trained_on', 'Leakage', 'Trạng thái'], cand_rows),
         'results': md_table(['Model', 'Loại', 'Trạng thái', 'Precision', 'Recall', 'F1', 'Accuracy',
@@ -742,27 +842,34 @@ def render_sections(summary, models, manifest, events):
                                         'lần lượt mọi model nên nhiệt độ GPU ảnh hưởng đều.' + sample_note,
         'recommendation': '\n'.join([rule, ''] + rec_stage2 + rec_pipe + gain),
     }
+    if view.split:
+        sections['goal'] = goal_block(summary, paired, decides=view.split == 'test')
+    return sections
 
 
-def write_report(sections):
-    """Replace <!-- BEGIN GENERATED: x --> ... <!-- END GENERATED: x --> blocks in REPORT.md."""
-    (RESULTS / 'report_tables.md').write_text(
+def write_report(sections, view):
+    """Replace <!-- BEGIN GENERATED: x<suffix> --> ... <!-- END GENERATED: x<suffix> --> blocks in the view's report."""
+    view.out.mkdir(parents=True, exist_ok=True)
+    (view.out / 'report_tables.md').write_text(
         '\n\n'.join(f'## {k}\n\n{v}' for k, v in sections.items()) + '\n', encoding='utf-8')
-    if not REPORT.is_file():
+    if not view.report.is_file():
         return
-    text = REPORT.read_text(encoding='utf-8')
+    text = view.report.read_text(encoding='utf-8')
     for key, body in sections.items():
+        key += view.suffix
         begin, end = f'<!-- BEGIN GENERATED: {key} -->', f'<!-- END GENERATED: {key} -->'
         if begin in text and end in text:
             head, rest = text.split(begin, 1)
             text = f'{head}{begin}\n{body}\n{end}{rest.split(end, 1)[1]}'
-    REPORT.write_text(text, encoding='utf-8')
+    view.report.write_text(text, encoding='utf-8')
 
 
-def report(models, manifest):
-    summary, events = analyze(models, manifest)
-    write_report(render_sections(summary, models, manifest, events))
-    return summary
+def report(models, manifest, split=None):
+    view = View(manifest, split, local_ids(models) if split is None else ())
+    models = {**models, 'candidates': [c for c in models['candidates'] if c['id'] not in view.hidden]}
+    summary, events = analyze(models, view)
+    write_report(render_sections(summary, models, view, events), view)
+    return summary, view
 
 
 def stored_latency_sample(clips):
@@ -771,7 +878,7 @@ def stored_latency_sample(clips):
     return [(r['clip_id'], float(r['t'])) for r in read_csv(RESULTS / 'latency_sample.csv') if r['clip_id'] in names]
 
 
-def latency_only(models, manifest, clips, variants, ids, runs, device, timer, n_runs):
+def latency_only(models, manifest, clips, variants, ids, runs, device, timer, n_runs, split=None):
     """--latency-only: time every (variant, ok model) pair on the stored sample; no scoring.
 
     Falls back to drawing a new sample from stage 1 prod when none is stored. Each variant's rows in
@@ -802,12 +909,12 @@ def latency_only(models, manifest, clips, variants, ids, runs, device, timer, n_
         print(f'Stage 1 {variant}: timing {len(cands)} candidates x {n_runs} rounds', flush=True)
         rows = latency_rounds(stage1, variant, cands, device, frames, timer, n_runs)
         done = {(c['id'], variant) for c in cands}
-        kept = [r for r in read_csv(RESULTS / 'latency.csv') if (r['model'], r['stage1']) not in done]
-        write_csv(RESULTS / 'latency.csv', LATENCY_FIELDS, kept + rows)
+        kept = [r for r in read_csv(latency_file(split)) if (r['model'], r['stage1']) not in done]
+        write_csv(latency_file(split), LATENCY_FIELDS, kept + rows)
         del stage1
         free_gpu()
-    summary = report(models, manifest)
-    print(f"Wrote {RESULTS / 'summary.csv'} ({len(summary)} pipelines)")
+    summary, view = report(models, manifest, split)
+    print(f"Wrote {view.out / 'summary.csv'} ({len(summary)} pipelines)")
     return 0
 
 
@@ -817,8 +924,8 @@ def main(argv=None):
     parser.add_argument('--clips', default='', help='comma-separated clip ids (default: all fetched)')
     parser.add_argument('--step', type=float, default=0.3)
     parser.add_argument('--device', default='auto')
-    parser.add_argument('--stage1-variants', default=','.join(STAGE1_VARIANTS),
-                        help=f"comma-separated, from {', '.join(STAGE1_VARIANTS)}")
+    parser.add_argument('--stage1-variants', default='prod,lowconf,pose',
+                        help=f"comma-separated, from {', '.join(STAGE1_VARIANTS)} (default: the v3 three)")
     parser.add_argument('--latency-runs', type=int, default=5, help='timed passes over the fixed frame sample')
     parser.add_argument('--report-only', action='store_true', help='only rerun the analysis and report from results/')
     parser.add_argument('--resume', action='store_true',
@@ -827,13 +934,16 @@ def main(argv=None):
     parser.add_argument('--latency-only', action='store_true',
                         help='only time the pairs already ok in results/runs.csv (e.g. after scoring on another '
                              'machine), on the frame sample stored in results/latency_sample.csv')
+    parser.add_argument('--split', choices=SPLITS,
+                        help='analyse only that side of split.csv into results/split_<side>/ and REPORT_FINETUNE.md '
+                             '(scoring still covers every selected clip)')
     args = parser.parse_args(argv)
     if args.latency_only and args.latency_runs < 1:
         parser.error('--latency-only needs --latency-runs >= 1')
 
     models, manifest = load_models(), fr.read_manifest()
     if args.report_only:
-        report(models, manifest)
+        report(models, manifest, args.split)
         return 0
 
     variants = [v for v in args.stage1_variants.split(',') if v]
@@ -861,7 +971,8 @@ def main(argv=None):
     previous_runs = read_csv(RESULTS / 'runs.csv')
     timer, latency_frames = Timer(device), None
     if args.latency_only:
-        return latency_only(models, manifest, clips, variants, ids, previous_runs, device, timer, args.latency_runs)
+        return latency_only(models, manifest, clips, variants, ids, previous_runs, device, timer, args.latency_runs,
+                            args.split)
     for variant in variants:   # one stage-1 model on the GPU at a time
         weights_id, conf = STAGE1_VARIANTS[variant]
         entry = stage1_entry(models, weights_id)
@@ -928,13 +1039,13 @@ def main(argv=None):
             # Every timed candidate loses its older rows, even if all its runs failed now, so the latency
             # numbers of one variant never mix sessions.
             done = {(c['id'], variant) for c in scored} | {(r['model'], r['stage1']) for r in lat_rows}
-            kept = [r for r in read_csv(RESULTS / 'latency.csv') if (r['model'], r['stage1']) not in done]
-            write_csv(RESULTS / 'latency.csv', LATENCY_FIELDS, kept + lat_rows)
+            kept = [r for r in read_csv(latency_file(args.split)) if (r['model'], r['stage1']) not in done]
+            write_csv(latency_file(args.split), LATENCY_FIELDS, kept + lat_rows)
         del stage1, cache
         free_gpu()
 
-    summary = report(models, manifest)
-    print(f"Wrote {RESULTS / 'summary.csv'} ({len(summary)} pipelines)")
+    summary, view = report(models, manifest, args.split)
+    print(f"Wrote {view.out / 'summary.csv'} ({len(summary)} pipelines)")
     return 0
 
 

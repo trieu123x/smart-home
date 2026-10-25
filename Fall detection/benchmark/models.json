@@ -29,6 +29,23 @@
       "trained_on": [
         "COCO"
       ]
+    },
+    {
+      "id": "yolo11s-ft",
+      "source_url": "https://www.kaggle.com/code/triuinhhi/fallguard-ft-stage1",
+      "files": [
+        {
+          "path": "best.pt",
+          "sha256": "f3801090569bfcc53c88cf3f2d80de9089603872270c3a0dfe984e08c1f7e464",
+          "local": true
+        }
+      ],
+      "license": "derived from yolo11s (AGPL-3.0) and E-FPDS (no license stated); research use only",
+      "trained_on": [
+        "COCO",
+        "E-FPDS"
+      ],
+      "notes": "yolo11s fine-tuned to one class person on E-FPDS plus yolo11s teacher boxes (benchmark/finetune/). Produced by kaggle_finetune.py --phase train; committed on 2026-10-25 at the user's request."
     }
   ],
   "candidates": [
@@ -244,6 +261,29 @@
       "license": "OpenRAIL (as stated on Hugging Face)",
       "trained_on": [],
       "notes": "YOLOv8 best.pt; no model card. Single class Fall-Detected, trained at 416 px; dataset folder Fall-Detection-4 (Roboflow export naming, same class name as the baseline)."
+    },
+    {
+      "id": "jerryg-ft3",
+      "kind": "classify",
+      "backend": "ultralytics",
+      "source_url": "https://www.kaggle.com/code/triuinhhi/fallguard-ft-stage2",
+      "files": [
+        {
+          "path": "best.pt",
+          "sha256": "3954f965bd737106f3eeb5845200c9ac61a510dbf46d456f692f5e4f0c71665f",
+          "local": true
+        }
+      ],
+      "fall_labels": [
+        "fall"
+      ],
+      "imgsz": 128,
+      "license": "not stated (derived from jerryg-v8x-cls, unlicensed)",
+      "trained_on": [
+        "CAUCAFall",
+        "benchmark split.csv train clips"
+      ],
+      "notes": "jerryg-v8x-cls fine-tuned to fall / sit / normal at 128 px on CAUCAFall and the 20 train clips; score = P(fall). Only the split_test results are clean: 20 of the 40 clips were stage-2 training data."
     }
   ]
 }

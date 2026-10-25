@@ -121,10 +121,15 @@ print(out, out.stat().st_size // 1024, 'KiB;', len(runs), 'runs rows')
 COST = {'leeyunjai-11x': 25, 'khoa05ai-v8m': 8, 'pose-rule-yolo11s': 8, 'jerryg-v8x-cls': 6}
 
 
+def is_local(entry):
+    """Fine-tuned weights produced by finetune/ (`local: true`); the v3 accuracy run leaves them out."""
+    return any(f.get('local') for f in entry['files'])
+
+
 def gpu_groups(candidates, n=2):
     """Greedy split of the runnable candidates into n groups with similar total cost."""
     groups, load = [[] for _ in range(n)], [0] * n
-    for c in sorted((c for c in candidates if c.get('status') != 'missing'),
+    for c in sorted((c for c in candidates if c.get('status') != 'missing' and not is_local(c)),
                     key=lambda c: -COST.get(c['id'], 5)):
         i = load.index(min(load))
         groups[i].append(c['id'])
@@ -164,7 +169,7 @@ def bundle(user):
     for entry in models['stage1'] + models['candidates']:
         for f in entry['files']:
             path = BENCH / 'weights' / entry['id'] / f['path']
-            if entry.get('status') != 'missing':
+            if entry.get('status') != 'missing' and not is_local(entry):   # fine-tuned weights are not v3
                 if not path.is_file():
                     sys.exit(f'missing weights {path} (run fetch_models.py)')
                 weights.append(path)
@@ -198,28 +203,32 @@ def bundle(user):
           f'notebooks for {", ".join(VARIANTS)}')
 
 
-def push(user, accelerator, skip_dataset=False):
-    dataset_dir = OUT / 'dataset'
+def upload_dataset(user, slug, dataset_dir, skip=False):
+    """Create or version the private dataset `user/slug` from dataset_dir, then wait until it is ready."""
     # The CLI keeps resumable-upload state under %TEMP%/.kaggle/uploads and puts the -p folder into that file
     # name, so it breaks on a nested relative path. Create the folder and upload from inside with -p .
     (Path(tempfile.gettempdir()) / '.kaggle' / 'uploads').mkdir(parents=True, exist_ok=True)
-    exists = kaggle('datasets', 'status', f'{user}/{DATASET_SLUG}', check=False)
+    exists = kaggle('datasets', 'status', f'{user}/{slug}', check=False)
     # check=False on create/version: CLI 1.8 can fail to parse the reply after a successful upload;
     # the status loop below is what decides whether the dataset is usable.
-    if skip_dataset:
+    if skip:
         pass
     elif exists.returncode == 0 and 'ready' in (exists.stdout or '').lower():
         kaggle('datasets', 'version', '-p', '.', '-m', 'update', '-r', 'skip', cwd=dataset_dir, check=False)
     else:
         kaggle('datasets', 'create', '-p', '.', '-r', 'skip', cwd=dataset_dir, check=False)   # private by default
     for _ in range(60):   # notebooks fail to mount a dataset that is still processing
-        state = kaggle('datasets', 'status', f'{user}/{DATASET_SLUG}', check=False)
+        state = kaggle('datasets', 'status', f'{user}/{slug}', check=False)
         if 'ready' in (state.stdout or '').lower():
             break
         print(f'  dataset status: {(state.stdout or state.stderr or "").strip()}; waiting 30 s', flush=True)
         time.sleep(30)
     else:
         sys.exit('dataset is not ready after 30 min; rerun push later')
+
+
+def push(user, accelerator, skip_dataset=False):
+    upload_dataset(user, DATASET_SLUG, OUT / 'dataset', skip_dataset)
     for variant in VARIANTS:
         kaggle('kernels', 'push', '-p', '.', '--accelerator', accelerator, cwd=OUT / f'kernel_{variant}')
 
