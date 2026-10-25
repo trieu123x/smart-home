@@ -63,4 +63,9 @@ goto end
 :failed
 echo [ERROR] Cai dat hoac khoi dong that bai; vui long chup loi tren man hinh.
 :end
+rem Fallback cleanup after the Python process ends (including error exits).
+if exist "tools\adb\adb.exe" (
+  echo [ADB] Dang dung ADB server...
+  "tools\adb\adb.exe" kill-server >nul 2>&1
+)
 pause

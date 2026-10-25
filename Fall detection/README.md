@@ -82,10 +82,13 @@ START_WINDOWS.bat
 
 **Không đưa file `.env` chứa mật khẩu/Gateway key lên GitHub.** Nếu có nhiều người trong khung hình và thường bị che khuất, có thể cần fine-tune tracking hoặc huấn luyện bổ sung trên video tại môi trường đó.
 
-## Test model mới trên video trước khi kết nối camera
+## Ngrok (chay rieng, khong tu khoi dong localhost)
 
-```
-.venv\Scripts\python.exe TEST_VIDEO.py "D:\Videos\fall_test.mp4"
-```
+1. Tu chay `START_WINDOWS.bat` de khoi dong FallGuard tai `http://localhost:8000`.
+2. Cai ngrok, dang ky va cau hinh authtoken theo huong dan ngrok (chi can mot lan). Dat `ngrok.exe` canh `RUN_NGROK.bat` hoac them ngrok vao PATH.
+3. Chay `RUN_NGROK.bat` de mo tunnel cong 8000, hoac `RUN_NGROK.bat 8080` neu da thay doi cong. Script **chi chay ngrok**, khong mo web server va khong mo browser.
+4. Sao chep dia chi HTTPS trong cua so ngrok de truy cap tu ben ngoai.
 
-Lệnh in tiến độ, `P(FALL)` cho từng người và danh sách `FALL ALERT` (nếu có). Thử tối thiểu video té ngã và video nằm/ngồi/cúi để so sánh báo nhầm với model cũ. Script này dùng **duy nhất** YOLO Pose + BiLSTM, không gửi Telegram khi chỉ kiểm tra video.
+Khi dong server bang Ctrl+C / thoat binh thuong, ung dung se dong camera va goi `adb kill-server`. `START_WINDOWS.bat` cung co buoc cleanup du phong. Lenh nay dung ADB daemon chung tren may tinh, co the anh huong cac ung dung khac dang su dung ADB. Neu tat may dot ngot hoac force-kill terminal, cleanup khong duoc bao dam.
+
+Da bo `TEST_VIDEO.py`; van giu bo unit test trong `tests/` de kiem tra he thong khi can.
