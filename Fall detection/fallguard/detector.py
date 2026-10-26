@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .checkpoint import load_fall_checkpoint
+
 ROOT = Path(__file__).resolve().parent.parent
 POSE_WEIGHTS = ROOT / 'models' / 'pose' / 'yolo11n-pose.pt'
 LSTM_WEIGHTS = ROOT / 'models' / 'fall' / 'best_fall_lstm.pth'
@@ -94,8 +96,8 @@ class Detector:
         checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.is_file():
             raise FileNotFoundError(f'Missing BiLSTM checkpoint: {checkpoint_path}')
-        # Bundle is converted to tensors, so safe weights_only=True works on PyTorch >=2.6.
-        ckpt = torch.load(str(checkpoint_path), map_location='cpu', weights_only=True)
+        # Accept both the original NumPy-scaler export and tensor-only exports.
+        ckpt = load_fall_checkpoint(checkpoint_path)
         dim = int(ckpt['model_config']['dim'])
         hidden = int(ckpt['model_config']['hidden'])
         self.frames = int(ckpt['frames'])
@@ -129,6 +131,9 @@ class Detector:
                         downloaded.unlink()
                 except OSError as exc:
                     logging.warning('Pose model runs, but cannot cache weights under models/pose/: %s', exc)
+        if pose is None and (self.pose.task != 'pose'
+                             or tuple(self.pose.model.model[-1].kpt_shape) != (17, 3)):
+            raise ValueError('Expected YOLO Pose with 17 keypoints and confidence scores.')
         self._track_mode = True
         logging.warning('FallGuard loaded new LSTM checkpoint: %s | window=%d | pose_imgsz=%d',
                         checkpoint_path, self.frames, self.img_size)

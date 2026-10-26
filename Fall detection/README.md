@@ -17,8 +17,8 @@ Không dùng `yolo11s.pt` và `leeyunjai-falldetect-11x.pt` nữa. **Model mới
 
 | Đường dẫn | Cách có được |
 |--|--|
-| `models/fall/best_fall_lstm.pth` | **Đã được đóng gói** từ checkpoint bạn tải lên, chuyển scaler từ NumPy sang Tensor để tải an toàn (`weights_only=True`). Trọng số và các giá trị scaler không đổi. |
-| `models/pose/yolo11n-pose.pt` | **Chưa có trong ZIP:** lần chạy đầu Ultralytics sẽ tự tải trọng số pretrained `yolo11n-pose.pt` (~6MB) nếu có Internet. Có thể tải và chép thủ công đúng đường dẫn để chạy offline. |
+| `models/fall/best_fall_lstm.pth` | **Đã có trong ZIP**: chính file `best_fall_lstm(2).pth` bạn gửi, đổi tên. Loader đọc scaler NumPy bằng allowlist giới hạn với `weights_only=True`; không thay đổi trọng số. |
+| `models/pose/yolo11n-pose.pt` | **Đã có trong ZIP**: chính file `yolo11n-pose(1).pt` bạn gửi, đổi tên. Không cần tải lại model khi chạy bản ZIP này. |
 
 YOLO Pose là model pretrained; BiLSTM là model bạn train. Nếu tải tự động `yolo11n-pose.pt` không thành công, hãy download trọng số chính thức từ [Ultralytics YOLO11 pose](https://docs.ultralytics.com/tasks/pose/), đặt tại `models/pose/yolo11n-pose.pt`, rồi chạy lại. Model **không** tự huấn luyện lại khi khởi động FallGuard.
 
@@ -27,8 +27,10 @@ YOLO Pose là model pretrained; BiLSTM là model bạn train. Nếu tải tự �
 1. Giải nén ZIP mới thành một thư mục riêng, ví dụ `D:\FallGuard_Pose_LSTM`.
 2. Cắm điện thoại Android qua USB, bật **USB debugging** (chấp nhận cấp quyền); Android 12+ để dùng `adb:back` hoặc `adb:front`.
 3. Chạy `START_WINDOWS.bat`. Nếu chưa có `.env`, chương trình sẽ tạo từ `.env.example` và mở Notepad. Điền mật khẩu `FALLGUARD_PASSWORD` **ít nhất 12 ký tự** và cấu hình Telegram nếu dùng.
-4. Chạy `START_WINDOWS.bat` lại. Lần đầu cần Internet để cài thư viện; đồng thời tự tải YOLO Pose nếu chưa có file trong `models/pose/`.
+4. Chạy `START_WINDOWS.bat` lại. Lần đầu cần Internet để cài thư viện. Hai model đã nằm đúng đường dẫn trong ZIP; nếu clone từ Git thì phải chép lại model theo mục bên dưới.
 5. Mở `http://localhost:8000`, đăng nhập, bật camera và **bật phân tích AI** trên dashboard.
+
+**Nâng cấp:** ưu tiên giải nén bản ZIP vào một thư mục mới, chép `.env` từ bản cũ nếu đã cấu hình. Nếu chép đè, xóa test cũ `tests/test_cctv_5s.py` (đã thay bằng `test_cctv_tracking.py`). `START_WINDOWS.bat` dùng dấu phiên bản dependency mới để cài bổ sung PyTorch phù hợp và `lap` cho ByteTrack.
 
 **Lưu ý khi nâng cấp từ thư mục cũ:** nếu chép `.env` đã có sang project mới, hãy đổi `CCTV_FALL_THRESHOLD=0.80`. Biến cũ `0.4` quá thấp với model mới; `CCTV_CONFIRMATIONS=3` có thể giữ nguyên. Không xóa mật khẩu hoặc Telegram Gateway nếu đã cấu hình.
 
@@ -58,7 +60,7 @@ YOLO Pose là model pretrained; BiLSTM là model bạn train. Nếu tải tự �
 ## Kiểm thử
 
 ```
-python -m pip install pytest httpx
+python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
@@ -69,14 +71,17 @@ Bộ test bao gồm: 32-frame window, xác nhận bằng nhiều dự đoán, re
 ```
 fallguard/
     detector.py           # YOLO Pose + BiLSTM + scaler
+    checkpoint.py         # loader cho scaler NumPy/Tensor
     cctv.py               # ADB camera + 32-frame tracker
     server.py             # API + alerts
 models/
     fall/best_fall_lstm.pth  # checkpoint của bạn (đã đóng gói)
-    pose/yolo11n-pose.pt     # tải tự động lần đầu hoặc chép thủ công
+    pose/yolo11n-pose.pt     # đã có trong ZIP, bỏ qua khi commit Git
 static/                   # Dashboard hiện có (đã cập nhật trạng thái)
 tools/adb/                # Công cụ USB ADB/scrcpy
 START_WINDOWS.bat
+CHECK_MODELS.bat           # kiểm tra nạp model + suy luận với đầu vào giả lập
+CHECK_GPU.bat              # kiểm tra PyTorch CUDA
 .env.example
 ```
 
@@ -89,3 +94,52 @@ START_WINDOWS.bat
 ```
 
 Lệnh in tiến độ, `P(FALL)` cho từng người và danh sách `FALL ALERT` (nếu có). Thử tối thiểu video té ngã và video nằm/ngồi/cúi để so sánh báo nhầm với model cũ. Script này dùng **duy nhất** YOLO Pose + BiLSTM, không gửi Telegram khi chỉ kiểm tra video.
+
+
+## Kiểm tra nhanh hai model
+
+Sau khi `START_WINDOWS.bat` đã cài xong môi trường, chạy `CHECK_MODELS.bat`.
+Script nạp cả hai file, chạy YOLO trên một khung hình trống và BiLSTM trên
+hai chuỗi giả lập `(32, 55)`. Kết quả `[PASS]` xác nhận nạp và suy luận hoạt động;
+không phải phép đo độ chính xác nhận diện té ngã. Không cần cắm điện thoại,
+không mở server và không gửi Telegram trong bước kiểm tra này.
+
+Nếu cần ép CPU để kiểm tra, mở CMD tại thư mục project:
+
+```bat
+set FALL_DEVICE=cpu
+.venv\Scripts\python.exe CHECK_MODELS.py
+```
+
+## Git và trọng số
+
+`.gitignore` bỏ qua `.env`, model (`.pt`, `.pth`, ...), dữ liệu/video, kết quả
+benchmark, file ghi hình, cache, môi trường ảo, log và các file ZIP.
+Code, `.env.example`, README, test, manifest benchmark và công cụ ADB vẫn có
+thể commit. Model có trong ZIP bàn giao nhưng không được commit vào Git.
+
+Sau khi clone repo, đặt lại hai file:
+
+```text
+models/fall/best_fall_lstm.pth
+models/pose/yolo11n-pose.pt
+```
+
+Kiểm tra trước khi commit:
+
+```bash
+git status --short
+git ls-files -ci --exclude-standard
+```
+
+Lệnh thứ hai liệt kê file đã được Git theo dõi nhưng hiện khớp `.gitignore`.
+Thêm `.gitignore` không tự bỏ theo dõi các file đã commit. Với hai model,
+có thể bỏ theo dõi mà giữ file trên máy bằng:
+
+```bash
+git rm --cached --ignore-unmatch -- models/fall/best_fall_lstm.pth models/pose/yolo11n-pose.pt
+```
+
+Nếu danh sách còn model benchmark hoặc `.env`, bỏ theo dõi từng đường dẫn đó
+bằng `git rm --cached -- "duong-dan-file"`. Lệnh này không xóa file khỏi các
+commit cũ; không tự viết lại lịch sử Git khi cập nhật project.
