@@ -41,13 +41,13 @@ echo [GPU] Kiem tra PyTorch va CUDA (se nang cap ban CPU neu co NVIDIA)...
 ".venv\Scripts\python.exe" -m fallguard.torch_setup
 if errorlevel 1 goto failed
 
-if exist ".venv\fallguard-pose-lstm-deps-v2" goto run
+if exist ".venv\fallguard-single-requirements-v3" goto run
 echo [SETUP] Dang cai cac goi FastAPI, Ultralytics, OpenCV...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 goto failed
-echo OK>".venv\fallguard-pose-lstm-deps-v2"
+echo OK>".venv\fallguard-single-requirements-v3"
 
 :run
 echo [CAMERA] Android USB ADB: video truc tiep, khong can DroidCam, RTMP, MediaMTX.

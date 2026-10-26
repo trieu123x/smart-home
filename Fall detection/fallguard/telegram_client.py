@@ -1,7 +1,7 @@
 """HTTP client for the EXISTING Telegram-bot FastAPI notification gateway.
 
 FallGuard NEVER stores or uses Telegram bot tokens, chat IDs or Supabase credentials.
-The Vercel bot provides POST /gateway/v1/notify with X-Gateway-Key.
+The gateway endpoint comes from environment settings; requests use X-Gateway-Key.
 """
 import base64
 import json
@@ -9,7 +9,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .telegram_config import GATEWAY_API_KEY, GATEWAY_URL
+from .telegram_config import GATEWAY_API_KEY, GATEWAY_PATH, GATEWAY_URL
 
 
 class TelegramError(RuntimeError):
@@ -34,7 +34,13 @@ def _gateway_endpoint():
         valid = False
     if not valid:
         raise TelegramError('TELEGRAM_GATEWAY_URL phải là địa chỉ HTTPS gốc của bot Vercel.')
-    return url + '/gateway/v1/notify'
+    path = GATEWAY_PATH
+    if (not path.startswith('/') or path.startswith('//')
+            or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in path)
+            or any(c in path for c in ('\\', '?', '#'))):
+        raise TelegramError('TELEGRAM_GATEWAY_PATH phải là đường dẫn bắt đầu bằng một dấu /, '
+                            'không kèm domain, query hoặc fragment. Kiểm tra .env.')
+    return url + path
 
 
 def is_configured():
@@ -85,7 +91,9 @@ def send_notification(*, title, message, level='info', event_id=None, image_jpeg
         if exc.code == 403:
             raise TelegramError('Gateway báo HTTP 403: bị chặn quyền truy cập. Kiểm tra Vercel Deployment Protection và Runtime Logs; không nhất thiết do sai API key.') from None
         if exc.code == 404:
-            raise TelegramError('Không tìm thấy /gateway/v1/notify. Hãy deploy bản Telegram Gateway mới trên Vercel.') from None
+            raise TelegramError('Gateway báo HTTP 404: không tìm thấy endpoint. '
+                                'Kiểm tra TELEGRAM_GATEWAY_URL và TELEGRAM_GATEWAY_PATH '
+                                'có khớp route đã deploy của bot không.') from None
         if exc.code == 422:
             raise TelegramError('Gateway từ chối định dạng cảnh báo (HTTP 422). Nếu gửi kèm ảnh, hãy cập nhật Telegram-bot Gateway trên Vercel trước.') from None
         if exc.code in (429, 503, 504):

@@ -31,6 +31,7 @@ def _read_env(path):
 _settings = _read_env(Path(__file__).resolve().parent.parent / '.env')
 # Process environment takes precedence, including an explicitly empty value.
 GATEWAY_URL = os.environ.get('TELEGRAM_GATEWAY_URL', _settings.get('TELEGRAM_GATEWAY_URL', '')).strip()
+GATEWAY_PATH = os.environ.get('TELEGRAM_GATEWAY_PATH', _settings.get('TELEGRAM_GATEWAY_PATH', '')).strip()
 GATEWAY_API_KEY = os.environ.get('TELEGRAM_GATEWAY_KEY', _settings.get('TELEGRAM_GATEWAY_KEY', '')).strip()
 try:
     ALERT_COOLDOWN_SECONDS = max(15, int(os.environ.get(

@@ -26,7 +26,7 @@ A pipeline is `<stage2>|s1=<variant>|trk=<variant>`:
 From `Fall detection/`, after `START_WINDOWS.bat` (or the manual venv + `fallguard.torch_setup`) has created `.venv`:
 
 ```
-.venv/Scripts/python -m pip install -r benchmark/requirements-benchmark.txt
+.venv/Scripts/python -m pip install -r requirements.txt
 ```
 
 ## Run

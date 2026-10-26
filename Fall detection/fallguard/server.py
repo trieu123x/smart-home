@@ -101,7 +101,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
         app.state.cctv_alert_tasks = set()
         app.state.cctv_telegram = 'configured' if telegram_configured() else 'not_configured'
         app.state.cctv_telegram_detail = ('Chưa có cảnh báo được gửi.' if telegram_configured()
-                                          else 'Thiếu TELEGRAM_GATEWAY_URL hoặc TELEGRAM_GATEWAY_KEY trong .env.')
+                                          else 'Thiếu hoặc sai TELEGRAM_GATEWAY_URL, TELEGRAM_GATEWAY_PATH hoặc TELEGRAM_GATEWAY_KEY trong .env.')
         app.state.cctv_error = None
         app.state.closing = False
         app.state.cctv_session = 'cctv-' + uuid.uuid4().hex
@@ -365,7 +365,7 @@ def create_app(factory=Detector, camera_factory=CameraReader, camera_settings=No
                     reason = result.get('reason')
                     if reason == 'not_configured':
                         app.state.cctv_telegram = 'not_configured'
-                        app.state.cctv_telegram_detail = 'Thiếu URL hoặc API key Gateway. Kiểm tra .env rồi khởi động lại.'
+                        app.state.cctv_telegram_detail = 'Thiếu hoặc sai URL, PATH hoặc API key Gateway. Kiểm tra .env rồi khởi động lại.'
                         alert_event['telegram'] = 'not_configured'
                         return
                     if reason == 'cooldown':

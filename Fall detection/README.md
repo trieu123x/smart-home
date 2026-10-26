@@ -60,7 +60,7 @@ YOLO Pose là model pretrained; BiLSTM là model bạn train. Nếu tải tự �
 ## Kiểm thử
 
 ```
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 
@@ -143,3 +143,31 @@ git rm --cached --ignore-unmatch -- models/fall/best_fall_lstm.pth models/pose/y
 Nếu danh sách còn model benchmark hoặc `.env`, bỏ theo dõi từng đường dẫn đó
 bằng `git rm --cached -- "duong-dan-file"`. Lệnh này không xóa file khỏi các
 commit cũ; không tự viết lại lịch sử Git khi cập nhật project.
+
+
+## Đường dẫn Telegram Gateway trong .env
+
+URL gốc, path và API key đều được cấu hình bên ngoài code:
+
+```dotenv
+TELEGRAM_GATEWAY_URL=https://your-bot.vercel.app
+TELEGRAM_GATEWAY_PATH=/gateway/v1/notify
+TELEGRAM_GATEWAY_KEY=YOUR_EXISTING_GATEWAY_KEY
+```
+
+Thay URL và key bằng cấu hình bot của bạn; key cần ít nhất 24 ký tự, không chứa
+khoảng trắng. URL chỉ chứa HTTPS origin; PATH bắt đầu bằng một dấu `/`, không
+chứa domain, query hoặc fragment. Endpoint gửi cảnh báo = URL + PATH.
+
+**Nếu dùng lại `.env` cũ, phải thêm `TELEGRAM_GATEWAY_PATH=/gateway/v1/notify`.**
+Ứng dụng không có path mặc định trong code. Thiếu PATH thì Telegram chưa được
+cấu hình; không gửi request. Sau khi sửa `.env`, dừng server và chạy lại
+`START_WINDOWS.bat` vì cấu hình được nạp lúc khởi động.
+
+Bot không cần sửa nếu giữ route hiện có `/gateway/v1/notify`: HTTP POST,
+header `X-Gateway-Key` và payload cảnh báo/ảnh vẫn giữ nguyên. Nếu đổi PATH,
+route bên gateway cũng phải tồn tại với cùng phương thức, xác thực và định dạng
+request/response. Chỉ sửa `.env` của FallGuard không tạo route mới trên bot.
+
+File `.env` vẫn được bỏ qua bởi Git; chỉ `.env.example` chứa cấu hình mẫu được
+đưa vào source. Bấm gửi thử Telegram trên dashboard sau khi khởi động lại.
