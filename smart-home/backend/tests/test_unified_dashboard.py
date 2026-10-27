@@ -8,6 +8,7 @@ import time
 os.environ['MQTT_ENABLED'] = 'false'
 os.environ['SEED_DEMO'] = 'false'
 os.environ['FALL_ENABLED'] = 'true'
+os.environ['CCTV_AUTOSTART'] = '1'
 os.environ['DASHBOARD_PASSWORD'] = 'Integration-test-password-123'
 os.environ['TELEGRAM_GATEWAY_URL'] = ''
 os.environ['TELEGRAM_GATEWAY_PATH'] = ''

@@ -1,4 +1,70 @@
+# Local configuration and private keys; keep configuration templates
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Python environments and generated caches
+.venv/
+.venv-*/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.ultralytics/
+.ipynb_checkpoints/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+
+# Node.js dependencies and generated build output
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+build/
+dist/
+
+# Local databases, logs and package-manager diagnostics
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files and operating-system metadata
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+[Dd]esktop.ini
+
+# Local archives and assistant settings
 *.zip
 CLAUDE.local.md
 .claude/settings.local.json
-*.tsbuildinfo

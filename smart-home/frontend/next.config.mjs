@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   async rewrites() {
     const backend = process.env.API_TARGET ?? "http://127.0.0.1:8000";
     return [

@@ -8,10 +8,14 @@ local model and ADB assets have been migrated.
 
 ## Start on Windows
 
-Install Python 3.13 with the Python launcher and Node.js 20 or 22 LTS, then run
+Install Python 3.13.x (including Microsoft Store installations) and Node.js 20 or 22 LTS, then run
 `START_DASHBOARD.bat` from `smart-home/`. The first start creates `backend/.venv`,
 installs dependencies and builds the frontend. Keep the terminal open; Ctrl+C
 stops the backend and frontend. Later starts reuse the Python environment.
+
+The `py` launcher is optional. The startup script checks `py -3.13`, `python`,
+`python3`, `python3.13` and common installation paths, and verifies that the
+interpreter belongs to Python 3.13 before creating the virtual environment.
 
 If `backend/.env` does not exist, the launcher imports the experimental camera
 configuration. It reuses `FALLGUARD_PASSWORD` as the dashboard password when it is

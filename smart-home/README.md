@@ -1,5 +1,13 @@
 # Smart Home Dashboard (đồ án IoT với ESP32)
 
+## Docker
+
+Run `docker compose up -d --build` from this directory, then open
+`http://localhost:3000`. The containers include Python, Node.js and the integrated
+Fall Detection dependencies. Configure `DASHBOARD_PASSWORD` in `backend/.env`.
+For an Android USB camera on Windows, also run `START_CAMERA_DOCKER.bat`.
+See [Docker setup and persistent storage](docs/DOCKER.md).
+
 ## Unified dashboard with Fall Detection
 
 Run `START_DASHBOARD.bat` to use one dashboard for ESP32 devices, camera controls,

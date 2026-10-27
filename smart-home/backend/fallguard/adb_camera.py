@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from pathlib import Path
 from .telegram_config import _settings
 import subprocess
@@ -18,7 +19,8 @@ import time
 
 from .paths import ASSETS as ROOT
 ADB_DIR = ROOT / "tools" / "adb"
-ADB_EXE = ADB_DIR / "adb.exe"
+ADB_EXE = Path(os.environ.get('ADB_EXECUTABLE') or (
+    str(ADB_DIR / 'adb.exe') if os.name == 'nt' else shutil.which('adb') or '/usr/bin/adb'))
 SCRCPY_SERVER = ADB_DIR / "scrcpy-server"
 SCRCPY_VERSION = "4.1"  # Verified against bundled scrcpy-server AndroidManifest.xml
 DEVICE_SERVER = "/data/local/tmp/fallguard-scrcpy-server.jar"
@@ -28,12 +30,30 @@ class AdbCameraError(RuntimeError):
     pass
 
 
-def _run_adb(args, serial=None, timeout=12, check=True):
+def _adb_command(serial=None):
     if not ADB_EXE.is_file():
-        raise AdbCameraError("Thieu tools/adb/adb.exe.")
+        raise AdbCameraError('Không tìm thấy ADB. Kiểm tra ADB_EXECUTABLE hoặc bộ công cụ ADB.')
     cmd = [str(ADB_EXE)]
+    host = os.environ.get('ADB_SERVER_HOST', _settings.get('ADB_SERVER_HOST', '')).strip()
+    if host:
+        cmd += ['-H', host, '-P', str(_env_int('ADB_SERVER_PORT', 5038, 1, 65535))]
     if serial:
         cmd += ["-s", serial]
+    return cmd
+
+
+def _stream_url(port):
+    host = os.environ.get('ADB_STREAM_HOST', _settings.get('ADB_STREAM_HOST', '')).strip()
+    if not host:
+        host = os.environ.get('ADB_SERVER_HOST', _settings.get('ADB_SERVER_HOST', '')).strip() or '127.0.0.1'
+    # FFmpeg expects brackets around IPv6 addresses.
+    if ':' in host and not host.startswith('['):
+        host = '[' + host + ']'
+    return f'tcp://{host}:{port}?timeout=5000000'
+
+
+def _run_adb(args, serial=None, timeout=12, check=True):
+    cmd = _adb_command(serial)
     try:
         result = subprocess.run(cmd + list(args), stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -110,7 +130,7 @@ class AdbH264Capture:
             _run_adb(["push", str(SCRCPY_SERVER), DEVICE_SERVER], serial=self.serial, timeout=30)
             _run_adb(["forward", f"tcp:{self.port}", "localabstract:scrcpy"], serial=self.serial)
             self.forward_active = True
-            args = [str(ADB_EXE), "-s", self.serial, "shell",
+            args = _adb_command(self.serial) + ["shell",
                     f"CLASSPATH={DEVICE_SERVER}", "app_process", "/",
                     "com.genymobile.scrcpy.Server", SCRCPY_VERSION,
                     "tunnel_forward=true", "audio=false", "control=false",
@@ -132,7 +152,7 @@ class AdbH264Capture:
             for i in range(8):
                 if self.server_process.poll() is not None:
                     raise AdbCameraError("scrcpy-server da thoat: " + self._server_error())
-                url = f"tcp://127.0.0.1:{self.port}?timeout=5000000"
+                url = _stream_url(self.port)
                 cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
                 if cap.isOpened():
                     self.capture = cap
