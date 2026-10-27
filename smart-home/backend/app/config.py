@@ -6,12 +6,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Cau hinh doc tu file .env (hoac bien moi truong)."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env.example", extra="ignore")
 
     database_url: str = "sqlite:///./smarthome.db"
     # Khoa ma ESP32 phai gui kem trong header X-Device-Key khi day du lieu len
     device_api_key: str = "esp32-secret-key"
     cors_origins: str = "http://localhost:3000"
+
+    # ------ Telegram -----
+    telegram_gateway_url: str = ""
+    telegram_gateway_key: str = ""
+    telegram_gateway_path: str = "/"
 
     # ---- MQTT: cau noi voi ESP32 (cung giao thuc voi ban Django) ----
     mqtt_enabled: bool = True

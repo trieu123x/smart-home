@@ -23,6 +23,7 @@ import uuid
 from typing import Any
 
 import paho.mqtt.client as mqtt
+from .telegram_notify import send_telegram
 from sqlalchemy.orm import Session
 
 from . import models, services
@@ -141,7 +142,10 @@ async def _set_online(db: Session, online: bool) -> None:
         message="ESP32 da ket noi" if online else "ESP32 mat ket noi",
         device=devices[0],
     )
-
+    if not online:
+        asyncio.create_task(send_telegram(
+            "ESP32 mất kết nối với hệ thống.", title="SMART HOME - MẤT KẾT NỐI", level="warning",
+        ))
 
 async def _sync_auto_flags(db: Session, mode: str) -> None:
     """Co auto_mode cua den/quat/loa theo che do he thong (de trang Thiet bi hien dung)."""
@@ -251,10 +255,18 @@ async def _on_sensors(payload: str) -> None:
                     message=f"Phat hien gas/khoi nguy hiem (ADC={data.get('gas')})",
                     device=sensor,
                 )
+                asyncio.create_task(send_telegram(
+                    f"Phát hiện gas/khói. Hãy kiểm tra ngay.\nGas (ADC): {data.get('gas')}\n"
+                    f"Nhiệt độ: {data.get('temp')}°C, độ ẩm: {data.get('hum')}%",
+                    title="SMART HOME - CẢNH BÁO GAS", level="critical",
+                ))
             if gas_off:
                 await services.log_event(
                     db, type="gas_clear", message="Het canh bao gas/khoi", device=sensor
                 )
+                asyncio.create_task(send_telegram(
+                    "Đã hết cảnh báo gas/khói.", title="SMART HOME - HẾT CẢNH BÁO GAS", level="info",
+                ))
             db.commit()
         finally:
             db.close()
