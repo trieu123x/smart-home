@@ -35,6 +35,11 @@ class ConnectionManager:
         dead: list[WebSocket] = []
         for connection in targets:
             try:
+                authorized = getattr(connection.state, 'is_authorized', None)
+                if authorized is not None and not authorized():
+                    await connection.close(code=1008)
+                    dead.append(connection)
+                    continue
                 await connection.send_text(message)
             except Exception:
                 dead.append(connection)

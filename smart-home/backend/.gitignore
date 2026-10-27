@@ -3,3 +3,7 @@ venv/
 __pycache__/
 *.db
 .env
+models/
+tools/
+*.py[cod]
+.pytest_cache/

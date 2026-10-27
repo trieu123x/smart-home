@@ -68,6 +68,17 @@ class Event(Base):
     device: Mapped[Device | None] = relationship(back_populates="events")
 
 
+class FallIncident(Base):
+    """Stable detection keys make persistence retries idempotent without altering existing tables."""
+    __tablename__ = 'fall_incidents'
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    event_id: Mapped[int | None] = mapped_column(ForeignKey('events.id', ondelete='SET NULL'), nullable=True)
+    person_id: Mapped[int] = mapped_column(Integer)
+    score: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Automation(Base):
     """Luat tu dong: khi <metric> <op> <threshold> thi bat/tat thiet bi dich."""
 

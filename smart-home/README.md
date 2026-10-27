@@ -1,5 +1,14 @@
 # Smart Home Dashboard (đồ án IoT với ESP32)
 
+## Unified dashboard with Fall Detection
+
+Run `START_DASHBOARD.bat` to use one dashboard for ESP32 devices, camera controls,
+YOLO Pose/BiLSTM fall detection, Telegram alerts and shared incident history.
+See [setup, configuration and validation](docs/FALL_DETECTION_INTEGRATION.md).
+The backend reads `.env`; set `DASHBOARD_PASSWORD` (at least 12 characters).
+Reflash the updated ESP32 firmware to enable camera-triggered timed buzzer alarms.
+
+
 Dashboard giám sát và điều khiển nhà thông minh, gồm **backend FastAPI + SQLite** và
 **frontend Next.js + TailwindCSS + Recharts + lucide-react**. Phần thiết bị thật (ESP32)
 chỉ cần gọi vài endpoint HTTP là ghép được.

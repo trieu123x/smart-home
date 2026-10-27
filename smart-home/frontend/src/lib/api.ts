@@ -10,17 +10,22 @@ import type {
   SystemMode,
 } from "./types";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+export const AUTH_EXPIRED = "dashboard-auth-expired";
 
-export const WS_URL = API_URL.replace(/^http/, "ws") + "/ws";
+export const WS_URL = (API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")).replace(/^http/, "ws") + "/ws";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     cache: "no-store",
   });
   if (!response.ok) {
+    if (response.status === 401 && !path.startsWith("/api/auth/") && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(AUTH_EXPIRED));
+    }
     const text = await response.text();
     // Backend trả {"detail": "..."} -> hiện nguyên văn câu thông báo cho người dùng
     try {
@@ -36,6 +41,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  session: () => request<{ authenticated: boolean; configured: boolean }>("/api/auth/session"),
+  login: (password: string) => request("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
+  logout: () => request("/api/auth/logout", { method: "POST" }),
+  fallView: <T>(signal?: AbortSignal) => request<T>("/api/fall/view", { signal }),
+  fallAction: (command: string, enabled?: boolean) => request(`/api/fall/${command}`, {
+    method: "POST", body: enabled === undefined ? undefined : JSON.stringify({ enabled }),
+  }),
   live: () => request<LiveState>("/api/live"),
   setMode: (mode: SystemMode) =>
     request<LiveState>("/api/mode", { method: "POST", body: JSON.stringify({ mode }) }),

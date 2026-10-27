@@ -76,6 +76,9 @@ bool autoMode = true;        // true = tự động, false = thủ công
 bool lightOn = false;
 bool fanOn = false;          // trạng thái thực của relay quạt
 bool buzzerOn = false;
+// Camera alarms are timed independently of the normal auto/manual controls.
+unsigned long fallAlarmStarted = 0;
+bool fallAlarmActive = false;
 bool fanCoolOn = false;      // nội bộ chế độ tự động
 bool fanVentOn = false;
 bool gasAlarm = false;
@@ -104,7 +107,9 @@ void setMode(bool toAuto) {
   autoMode = toAuto;
   if (!autoMode) {
     // Chuyển sang thủ công: giữ nguyên trạng thái hiện tại, không đổi đột ngột
-    manualLight = lightOn; manualFan = fanOn; manualBuzzer = buzzerOn;
+    manualLight = lightOn; manualFan = fanOn;
+    // A temporary camera alarm must not become a latched manual command.
+    manualBuzzer = (buzzerOn && !fallAlarmActive) || gasAlarm;
   }
   Serial.println(autoMode ? "CHE DO: TU DONG" : "CHE DO: THU CONG");
   publishNow = true;
@@ -121,9 +126,16 @@ void onMqttMessage(char* topic, byte* payload, unsigned int len) {
     return;
   }
   if (t.startsWith(T_CMD)) {
+    String dev = t.substring(strlen(T_CMD));
+    if (dev == "fall_alarm") {
+      if (msg != "ON" && msg != "OFF") return;
+      fallAlarmActive = (msg == "ON");
+      fallAlarmStarted = millis();
+      publishNow = true;
+      return;
+    }
     if (autoMode) return;                 // bỏ qua lệnh khi đang tự động
     bool on = (msg == "ON");
-    String dev = t.substring(strlen(T_CMD));
     if (dev == "light") manualLight = on;
     else if (dev == "fan") manualFan = on;
     else if (dev == "buzzer") manualBuzzer = on;
@@ -354,6 +366,10 @@ void loop() {
     fanOn = newFan; setRelay(RELAY_FAN, fanOn); publishNow = true;
     Serial.println(fanOn ? "QUAT: BAT" : "QUAT: TAT");
   }
+  if (fallAlarmActive && (unsigned long)(now - fallAlarmStarted) >= 30000UL) {
+    fallAlarmActive = false;
+  }
+  newBuzzer = newBuzzer || fallAlarmActive;
   if (newBuzzer != buzzerOn) {
     buzzerOn = newBuzzer; digitalWrite(BUZZER_PIN, buzzerOn ? HIGH : LOW); publishNow = true;
     Serial.println(buzzerOn ? "LOA: BAT" : "LOA: TAT");

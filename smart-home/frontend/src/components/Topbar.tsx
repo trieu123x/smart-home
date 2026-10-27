@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { useDashboard } from "./DashboardProvider";
+import { useSession } from "./DashboardSession";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Tổng quan ngôi nhà", subtitle: "Theo dõi cảm biến và thiết bị theo thời gian thực" },
@@ -19,6 +20,7 @@ export function Topbar() {
   const pathname = usePathname();
   const { summary, connected, refresh } = useDashboard();
   const [refreshing, setRefreshing] = useState(false);
+  const { logout } = useSession();
 
   const meta = TITLES[pathname] ?? TITLES["/"];
 
@@ -37,6 +39,7 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button className="btn-ghost" onClick={logout}>Đăng xuất</button>
           <span
             className={clsx(
               "chip",

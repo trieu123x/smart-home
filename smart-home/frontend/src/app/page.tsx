@@ -12,7 +12,7 @@ import { LiveStatus } from "@/components/LiveStatus";
 import { ModeSwitch } from "@/components/ModeSwitch";
 import { SensorChart } from "@/components/SensorChart";
 import { StatCard } from "@/components/StatCard";
-import { VideoSlot } from "@/components/VideoSlot";
+import { FallDetection } from "@/components/FallDetection";
 import { timeAgo } from "@/lib/format";
 
 export default function DashboardPage() {
@@ -50,7 +50,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-3">
         <ActuatorPanel />
         <div className="xl:col-span-2">
-          <VideoSlot />
+          <FallDetection />
         </div>
       </div>
 

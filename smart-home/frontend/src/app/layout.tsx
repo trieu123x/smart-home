@@ -6,6 +6,7 @@ import { FallAlertBanner } from "@/components/FallAlertBanner";
 import { GasAlertBanner } from "@/components/GasAlertBanner";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
+import { DashboardSession } from "@/components/DashboardSession";
 
 export const metadata: Metadata = {
   title: "Smart Home | Bảng điều khiển",
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <body>
-        <DashboardProvider>
+        <DashboardSession><DashboardProvider>
           <div className="flex min-h-screen">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <main className="flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">{children}</main>
             </div>
           </div>
-        </DashboardProvider>
+        </DashboardProvider></DashboardSession>
       </body>
     </html>
   );

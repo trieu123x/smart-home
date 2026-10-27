@@ -6,7 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Cau hinh doc tu file .env (hoac bien moi truong)."""
 
-    model_config = SettingsConfigDict(env_file=".env.example", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    dashboard_password: str = ""
+    fall_enabled: bool = True
 
     database_url: str = "sqlite:///./smarthome.db"
     # Khoa ma ESP32 phai gui kem trong header X-Device-Key khi day du lieu len

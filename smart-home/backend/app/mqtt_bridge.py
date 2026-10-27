@@ -393,6 +393,13 @@ async def set_mode(db: Session, mode: str) -> None:
     await _push_live()
 
 
+async def fall_alarm() -> None:
+    """Dedicated timed alarm command; does not change auto/manual mode or other actuators."""
+    current = get_state()
+    if _client is not None and current['broker_ok'] and current['esp_online']:
+        _client.publish(T_CMD + 'fall_alarm', 'ON', qos=1, retain=False)
+
+
 async def manual_command(db: Session, key: str, state: bool) -> models.Device:
     """Bat/tat den/quat/loa o che do thu cong (publish cmd/<key> = ON|OFF)."""
     current = _require_broker()
