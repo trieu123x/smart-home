@@ -41,17 +41,20 @@ echo [GPU] Kiem tra PyTorch va CUDA (se nang cap ban CPU neu co NVIDIA)...
 ".venv\Scripts\python.exe" -m fallguard.torch_setup
 if errorlevel 1 goto failed
 
-if exist ".venv\fallguard-adb-deps-v1" goto run
+if exist ".venv\fallguard-single-requirements-v3" goto run
 echo [SETUP] Dang cai cac goi FastAPI, Ultralytics, OpenCV...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 goto failed
-echo OK>".venv\fallguard-adb-deps-v1"
+echo OK>".venv\fallguard-single-requirements-v3"
 
 :run
 echo [CAMERA] Android USB ADB: video truc tiep, khong can DroidCam, RTMP, MediaMTX.
-if not exist "models\fall\best_fall_lstm.pth" echo [ERROR] Thieu model models\fall\best_fall_lstm.pth
+if not exist "models\fall\best_fall_lstm.pth" (
+  echo [ERROR] Thieu model models\fall\best_fall_lstm.pth
+  goto failed
+)
 if not exist "models\pose\yolo11n-pose.pt" echo [INFO] YOLO11n Pose se duoc tai tu dong khi khoi dong (can Internet lan dau).
 ".venv\Scripts\python.exe" -m fallguard.start
 if errorlevel 1 goto failed

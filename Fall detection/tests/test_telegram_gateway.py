@@ -45,6 +45,7 @@ class Opener:
 @pytest.fixture(autouse=True)
 def gateway_settings(monkeypatch):
     monkeypatch.setattr(client, 'GATEWAY_URL', URL)
+    monkeypatch.setattr(client, 'GATEWAY_PATH', '/gateway/v1/notify')
     monkeypatch.setattr(client, 'GATEWAY_API_KEY', KEY)
 
 

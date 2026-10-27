@@ -1,4 +1,4 @@
-# Secrets/configuration
+# Private configuration and credentials
 .env
 .env.*
 !.env.example
@@ -8,8 +8,9 @@
 *.p12
 *.pfx
 
-# Models / data (kept locally, not committed)
+# Local model weights (included in the delivery ZIP, excluded from Git)
 /models/*
+!/models/README.md
 !/models/README.txt
 *.pt
 *.pth
@@ -17,40 +18,83 @@
 *.engine
 *.safetensors
 *.ckpt
+*.tflite
+*.pkl
+*.pickle
+*.npy
+*.npz
+
+# Datasets, recordings and generated inference/training output
 /media/
 /recordings/
 /captures/
 /snapshots/
 /data/
+/datasets/
+/uploads/
+/outputs/
+/runs/
 /logs/
 /benchmark/data/
 /benchmark/weights/
 /benchmark/results/
+/benchmark/cache/
 *.mp4
 *.mkv
 *.avi
 *.mov
+*.webm
+*.m4v
+*.mpeg
+*.mpg
+*.h264
+*.h265
 *.db
 *.sqlite*
 *.log
 
-# Local Python environment / temp
+# Virtual environments, Python caches and build/test output
 .venv/
+.venv-*/
 venv/
+env/
+ENV/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.cache/
+.ultralytics/
+.ipynb_checkpoints/
+.tox/
+.nox/
 .coverage*
+coverage.xml
 htmlcov/
 *.egg-info/
+.eggs/
 build/
 dist/
 
-# Editors/OS
+# Archives and temporary/editor/OS files
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Keep source, tests, .env.example, benchmark manifests/reports/figures
+# and the required tools/adb binaries eligible for version control.

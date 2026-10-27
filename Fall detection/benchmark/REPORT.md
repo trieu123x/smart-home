@@ -488,7 +488,7 @@ lừa pipeline được đề xuất, `jerryg-v8x-cls` với stage 1 `pose`.
 ## 13. Tái lập
 
 ```
-.venv/Scripts/python -m pip install -r benchmark/requirements-benchmark.txt
+.venv/Scripts/python -m pip install -r requirements.txt
 .venv/Scripts/python -I benchmark/fetch_clips.py
 $env:KAGGLE_API_TOKEN = '...'; .venv/Scripts/python -I benchmark/fetch_models.py
 # độ chính xác: local (chậm) hoặc Kaggle
