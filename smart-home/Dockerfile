@@ -18,6 +18,7 @@ ENV NODE_ENV=production \
     PORT=3000
 COPY --from=frontend-build --chown=node:node /build/.next/standalone ./
 COPY --from=frontend-build --chown=node:node /build/.next/static ./.next/static
+COPY --from=frontend-build --chown=node:node /build/public ./public
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

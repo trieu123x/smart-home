@@ -79,6 +79,17 @@ class FallIncident(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class PushSubscription(Base):
+    """One browser installation (Android/iOS Home Screen PWA) per row."""
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    endpoint: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    p256dh: Mapped[str] = mapped_column(String(512), nullable=False)
+    auth: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Automation(Base):
     """Luat tu dong: khi <metric> <op> <threshold> thi bat/tat thiet bi dich."""
 

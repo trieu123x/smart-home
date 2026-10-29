@@ -25,12 +25,14 @@ from typing import Any
 import paho.mqtt.client as mqtt
 from .telegram_notify import send_telegram
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from . import models, services
 from .bridge_devices import ACTUATORS, ROOM, SENSOR_CODE, SENSOR_NAME
 from .config import settings
 from .database import SessionLocal
 from .realtime import manager
+from .push_notify import notify_event
 
 PREFIX = settings.mqtt_topic_prefix
 T_SENSORS = PREFIX + "sensors"
@@ -222,6 +224,8 @@ async def _on_sensors(payload: str) -> None:
     due = now - _last_db_write >= settings.mqtt_history_seconds
 
     if came_online or due or changed or mode_changed or motion_edge or gas_on or gas_off:
+        push_gas_event = None
+        push_gas_payload = None
         db = SessionLocal()
         try:
             if came_online:
@@ -248,7 +252,7 @@ async def _on_sensors(payload: str) -> None:
                     db, type="motion", message="Phat hien chuyen dong", device=sensor
                 )
             if gas_on:
-                await services.log_event(
+                push_gas_event = await services.log_event(
                     db,
                     type="gas_alarm",
                     severity="critical",
@@ -268,8 +272,13 @@ async def _on_sensors(payload: str) -> None:
                     "Đã hết cảnh báo gas/khói.", title="SMART HOME - HẾT CẢNH BÁO GAS", level="info",
                 ))
             db.commit()
+            if push_gas_event is not None:
+                db.refresh(push_gas_event)
+                push_gas_payload = services.event_payload(push_gas_event)
         finally:
             db.close()
+        if push_gas_payload is not None:
+            asyncio.create_task(notify_event(push_gas_payload))
 
     await _push_live()
 
@@ -283,6 +292,13 @@ async def _check_online() -> None:
             db.commit()
         finally:
             db.close()
+        with SessionLocal() as notify_db:
+            event = notify_db.scalar(
+                select(models.Event).where(models.Event.type == "device_offline")
+                .order_by(models.Event.id.desc()).limit(1)
+            )
+            if event is not None:
+                asyncio.create_task(notify_event(services.event_payload(event)))
         await _push_live()
 
 

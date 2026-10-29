@@ -10,7 +10,7 @@ from . import mqtt_bridge
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .realtime import manager
-from .routers import automations, dashboard, devices, events, ingest, live, fall
+from .routers import automations, dashboard, devices, events, ingest, live, fall, push
 from .dashboard_auth import auth, COOKIE_NAME, router as auth_router
 from fallguard.runtime import FallRuntime
 from .fall_events import record_incident, camera_heartbeat
@@ -119,6 +119,7 @@ app.include_router(automations.router)
 app.include_router(dashboard.router)
 app.include_router(ingest.router)
 app.include_router(live.router)
+app.include_router(push.router)
 
 
 @app.get("/api/health", tags=["health"])

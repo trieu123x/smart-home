@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Smart Home - Cảnh báo và điều khiển",
+  "short_name": "Smart Home",
+  "description": "Theo dõi thiết bị và nhận cảnh báo nhà thông minh",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0e1729",
+  "background_color": "#0e1729",
+  "icons": [
+    { "src": "/icons/smart-home-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icons/smart-home-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

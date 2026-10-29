@@ -1,5 +1,7 @@
 "use client";
 
+import { PushSettings } from "@/components/PushSettings";
+
 import { CheckCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -27,6 +29,7 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-4">
+      <PushSettings />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((option) => (
