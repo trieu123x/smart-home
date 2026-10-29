@@ -141,12 +141,12 @@ async def _set_online(db: Session, online: bool) -> None:
         db,
         type="device_online" if online else "device_offline",
         severity="info" if online else "warning",
-        message="ESP32 da ket noi" if online else "ESP32 mat ket noi",
+        message="Bộ cảm biến đã kết nối" if online else "Bộ cảm biến mất kết nối",
         device=devices[0],
     )
     if not online:
         asyncio.create_task(send_telegram(
-            "ESP32 mất kết nối với hệ thống.", title="SMART HOME - MẤT KẾT NỐI", level="warning",
+            "Bộ cảm biến mất kết nối với hệ thống.", title="SMART HOME - MẤT KẾT NỐI", level="warning",
         ))
 
 async def _sync_auto_flags(db: Session, mode: str) -> None:
@@ -249,24 +249,23 @@ async def _on_sensors(payload: str) -> None:
 
             if motion_edge:
                 await services.log_event(
-                    db, type="motion", message="Phat hien chuyen dong", device=sensor
+                    db, type="motion", message="Phát hiện chuyển động", device=sensor
                 )
             if gas_on:
                 push_gas_event = await services.log_event(
                     db,
                     type="gas_alarm",
                     severity="critical",
-                    message=f"Phat hien gas/khoi nguy hiem (ADC={data.get('gas')})",
+                    message="Phát hiện gas hoặc khói bất thường. Hãy kiểm tra khu vực ngay.",
                     device=sensor,
                 )
                 asyncio.create_task(send_telegram(
-                    f"Phát hiện gas/khói. Hãy kiểm tra ngay.\nGas (ADC): {data.get('gas')}\n"
-                    f"Nhiệt độ: {data.get('temp')}°C, độ ẩm: {data.get('hum')}%",
+                    "Phát hiện gas hoặc khói bất thường. Hãy kiểm tra ngay để đảm bảo an toàn.",
                     title="SMART HOME - CẢNH BÁO GAS", level="critical",
                 ))
             if gas_off:
                 await services.log_event(
-                    db, type="gas_clear", message="Het canh bao gas/khoi", device=sensor
+                    db, type="gas_clear", message="Mức gas và khói đã trở lại bình thường", device=sensor
                 )
                 asyncio.create_task(send_telegram(
                     "Đã hết cảnh báo gas/khói.", title="SMART HOME - HẾT CẢNH BÁO GAS", level="info",

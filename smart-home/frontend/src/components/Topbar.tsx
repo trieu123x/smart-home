@@ -8,6 +8,7 @@ import { useState } from "react";
 
 import { useDashboard } from "./DashboardProvider";
 import { useSession } from "./DashboardSession";
+import { QuickActions } from "./QuickActions";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Tổng quan ngôi nhà", subtitle: "Theo dõi cảm biến và thiết bị theo thời gian thực" },
@@ -38,7 +39,8 @@ export function Topbar() {
           <p className="muted mt-0.5">{meta.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <QuickActions />
           <button className="btn-ghost" onClick={logout}>Đăng xuất</button>
           <span
             className={clsx(
@@ -47,7 +49,7 @@ export function Topbar() {
             )}
           >
             {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {connected ? "Realtime" : "Offline"}
+            {connected ? "Đã kết nối" : "Mất kết nối"}
           </span>
 
           <button className="btn-ghost" onClick={handleRefresh} disabled={refreshing}>

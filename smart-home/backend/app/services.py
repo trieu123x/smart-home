@@ -164,12 +164,11 @@ async def evaluate_automations(db: Session, source: models.Device, metric: str, 
             source="automation",
             auto_off_seconds=rule.auto_off_seconds if desired else 0,
         )
-        verb = "bat" if desired else "tat"
         await log_event(
             db,
             type="automation",
             severity="info",
-            message=f"Luat [{rule.name}] da {verb} {target.name} ({metric}={value:g})",
+            message=f"Quy tắc {rule.name} đã {'bật' if desired else 'tắt'} {target.name}",
             device=target,
         )
         await manager.broadcast("automation", {"id": rule.id, "last_triggered": now})
@@ -181,7 +180,7 @@ async def handle_fall(db: Session, device: models.Device, message: str | None = 
         db,
         type="fall_detected",
         severity="critical",
-        message=message or f"Phat hien nga tai {device.room} ({device.name})",
+        message=message or f"Phát hiện dấu hiệu té ngã tại {device.room}",
         device=device,
     )
     for alarm in db.scalars(select(models.Device).where(models.Device.kind == "alarm")).all():
@@ -234,7 +233,7 @@ async def record_telemetry(
                 await log_event(
                     db,
                     type="motion",
-                    message=f"Phat hien chuyen dong tai {device.room}",
+                    message=f"Phát hiện chuyển động tại {device.room}",
                     device=device,
                 )
             _last_motion[device.id] = reading.value
@@ -261,7 +260,7 @@ async def run_auto_off(db: Session) -> None:
         await log_event(
             db,
             type="automation",
-            message=f"{device.name} tu dong tat sau khi het thoi gian cho",
+            message=f"{device.name} đã tự động tắt",
             device=device,
         )
 
@@ -279,6 +278,6 @@ async def mark_offline_devices(db: Session, timeout_seconds: int = 60) -> None:
                 db,
                 type="device_offline",
                 severity="warning",
-                message=f"{device.name} mat ket noi",
+                message=f"{device.name} mất kết nối",
                 device=device,
             )

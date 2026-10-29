@@ -35,8 +35,7 @@ async def record_incident(incident):
         device.online = True
         device.last_seen = services.utcnow()
         event = models.Event(device_id=device.id, type='fall_detected', severity='critical',
-                             message=(f"{incident['source']} · Phát hiện dấu hiệu té ngã: "
-                                      f"người #{incident['person_id']} · Điểm model {incident['score']:.0%}"),
+                             message="Camera phát hiện dấu hiệu té ngã. Vui lòng kiểm tra ngay.",
                              ts=datetime.fromisoformat(incident['time']))
         db.add(event)
         db.flush()

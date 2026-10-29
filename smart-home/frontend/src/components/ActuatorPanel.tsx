@@ -130,7 +130,7 @@ export function ActuatorPanel() {
           ? "Bấm Bật/Tắt để điều khiển trực tiếp."
           : live?.esp_online
             ? "Nút Bật/Tắt chỉ dùng được ở chế độ thủ công."
-            : "ESP32 đang offline - chưa điều khiển được."}
+            : "Bộ điều khiển mất kết nối. Hiện chưa thể điều khiển thiết bị."}
       </p>
       {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
     </section>

@@ -38,7 +38,7 @@ export function SensorChart({ series }: { series: MetricSeries[] }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="card-title">{METRIC_LABEL[metric]} trong 12 giờ qua</h2>
-          <p className="muted mt-1">Dữ liệu cảm biến gửi từ ESP32</p>
+          <p className="muted mt-1">Thông tin ghi nhận từ các cảm biến trong nhà</p>
         </div>
         <div className="flex rounded-xl border border-white/10 p-1">
           {METRICS.map((item) => (

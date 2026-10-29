@@ -1,3 +1,5 @@
+import type { SmartEvent } from "./types";
+
 const timeFormatter = new Intl.DateTimeFormat("vi-VN", {
   hour: "2-digit",
   minute: "2-digit",
@@ -65,3 +67,32 @@ export const EVENT_LABEL: Record<string, string> = {
   device_online: "Thiết bị kết nối",
   device_offline: "Mất kết nối",
 };
+
+/** Keep existing history intact while hiding old internal diagnostics from the public interface. */
+export function isSampleEvent(event: SmartEvent): boolean {
+  return event.type === "fall_detected" && /\bdu lieu mau\b|dữ liệu mẫu|\bdemo\b/i.test(event.message);
+}
+
+export function displayEventMessage(event: SmartEvent): string {
+  switch (event.type) {
+    case "fall_detected":
+      return "Camera phát hiện dấu hiệu té ngã. Vui lòng kiểm tra ngay.";
+    case "gas_alarm":
+      return "Phát hiện gas hoặc khói bất thường. Hãy kiểm tra khu vực ngay.";
+    case "gas_clear":
+      return "Mức gas và khói đã trở lại bình thường.";
+    case "motion":
+      return "Phát hiện chuyển động trong nhà.";
+    case "device_offline":
+      return `${event.device_name || "Một thiết bị"} mất kết nối.`;
+    case "device_online":
+      return `${event.device_name || "Thiết bị"} đã kết nối.`;
+    case "automation":
+      if (/\bluat\b|\bmetric\b|[a-z_]+=\d|luật \[/i.test(event.message)) {
+        return `Hệ thống đã điều khiển ${event.device_name || "thiết bị"} theo quy tắc tự động.`;
+      }
+      return event.message;
+    default:
+      return event.message;
+  }
+}

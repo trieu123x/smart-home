@@ -10,7 +10,7 @@ import { DashboardSession } from "@/components/DashboardSession";
 
 export const metadata: Metadata = {
   title: "Smart Home | Bảng điều khiển",
-  description: "Dashboard giám sát nhà thông minh: phát hiện ngã, quạt và đèn tự động",
+  description: "Theo dõi ngôi nhà, nhận cảnh báo và điều khiển thiết bị",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Smart Home", statusBarStyle: "black-translucent" },
   icons: { icon: "/icons/smart-home-192.png", apple: "/icons/smart-home-192.png" },

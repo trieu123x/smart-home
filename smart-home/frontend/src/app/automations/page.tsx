@@ -32,12 +32,11 @@ export default function AutomationsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="muted max-w-xl">
-          Mỗi luật hoạt động độc lập: khi giá trị cảm biến thỏa điều kiện, backend gửi lệnh bật/tắt
-          xuống thiết bị. Thiết bị phải đang ở chế độ AUTO thì luật mới tác động được.
+          Chọn điều kiện để đèn, quạt hoặc còi báo tự bật/tắt. Thiết bị cần được bật chế độ tự động để thực hiện.
         </p>
         <button className="btn-primary" onClick={() => setShowForm((value) => !value)}>
           {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? "Đóng" : "Thêm luật"}
+          {showForm ? "Đóng" : "Thêm quy tắc"}
         </button>
       </div>
 
@@ -56,7 +55,7 @@ export default function AutomationsPage() {
         <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="border-b border-white/5 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-5 py-3 font-medium">Tên luật</th>
+              <th className="px-5 py-3 font-medium">Tên quy tắc</th>
               <th className="px-5 py-3 font-medium">Điều kiện</th>
               <th className="px-5 py-3 font-medium">Hành động</th>
               <th className="px-5 py-3 font-medium">Tự tắt sau</th>
@@ -97,7 +96,7 @@ export default function AutomationsPage() {
                   <button
                     role="switch"
                     aria-checked={rule.enabled}
-                    aria-label={`Bật tắt luật ${rule.name}`}
+                    aria-label={`Bật tắt quy tắc ${rule.name}`}
                     onClick={() => void toggleRule(rule.id, !rule.enabled)}
                     className={clsx(
                       "relative h-6 w-11 rounded-full transition",
@@ -116,7 +115,7 @@ export default function AutomationsPage() {
                   <button
                     className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
                     onClick={() => void removeRule(rule.id)}
-                    aria-label={`Xóa luật ${rule.name}`}
+                    aria-label={`Xóa quy tắc ${rule.name}`}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -127,7 +126,7 @@ export default function AutomationsPage() {
         </table>
 
         {!loading && automations.length === 0 && (
-          <p className="muted py-10 text-center">Chưa có luật tự động nào</p>
+          <p className="muted py-10 text-center">Chưa có quy tắc tự động nào</p>
         )}
       </div>
     </div>
@@ -170,7 +169,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
       });
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không lưu được luật");
+      setError(err instanceof Error ? err.message : "Không lưu được quy tắc");
     } finally {
       setSaving(false);
     }
@@ -179,7 +178,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
   return (
     <form onSubmit={submit} className="card grid gap-3 md:grid-cols-3 xl:grid-cols-4">
       <div className="md:col-span-3 xl:col-span-2">
-        <label className="muted">Tên luật</label>
+        <label className="muted">Tên quy tắc</label>
         <input
           required
           className="input mt-1"
@@ -190,7 +189,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
       </div>
 
       <div>
-        <label className="muted">Cảm biến nguồn</label>
+        <label className="muted">Cảm biến theo dõi</label>
         <select
           className="input mt-1"
           value={form.source_device_id}
@@ -249,7 +248,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
       </div>
 
       <div>
-        <label className="muted">Thiết bị đích</label>
+        <label className="muted">Thiết bị điều khiển</label>
         <select
           className="input mt-1"
           value={form.target_device_id}
@@ -287,7 +286,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
       </div>
 
       <div>
-        <label className="muted">Chờ tối thiểu (giây)</label>
+        <label className="muted">Khoảng nghỉ giữa các lần (giây)</label>
         <input
           type="number"
           min={0}
@@ -299,7 +298,7 @@ function RuleForm({ targets, sensors, onDone }: FormProps) {
 
       <div className="flex items-end">
         <button className="btn-primary w-full" disabled={saving || targets.length === 0}>
-          {saving ? "Đang lưu..." : "Tạo luật"}
+          {saving ? "Đang lưu..." : "Lưu quy tắc"}
         </button>
       </div>
 

@@ -26,7 +26,7 @@ export function Sidebar() {
         </span>
         <div>
           <p className="text-sm font-semibold text-white">Smart Home</p>
-          <p className="muted">Đồ án IoT · ESP32</p>
+          <p className="muted">Quản lý và bảo vệ ngôi nhà</p>
         </div>
       </div>
 
@@ -59,10 +59,10 @@ export function Sidebar() {
       <div className="mt-auto rounded-xl border border-white/5 bg-ink-800 p-4">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-300">
           <Activity size={14} className={connected ? "text-brand-400" : "text-slate-500"} />
-          {connected ? "Đang nhận dữ liệu realtime" : "Mất kết nối realtime"}
+          {connected ? "Đang cập nhật thông tin" : "Không nhận được cập nhật"}
         </div>
         <p className="muted mt-2">
-          {summary ? `${summary.devices_online}/${summary.devices_total} thiết bị online` : "Đang tải..."}
+          {summary ? `${summary.devices_online}/${summary.devices_total} thiết bị đang kết nối` : "Đang tải..."}
         </p>
       </div>
     </aside>

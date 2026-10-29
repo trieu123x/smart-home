@@ -9,7 +9,7 @@ import type { SystemMode } from "@/lib/types";
 import { useDashboard } from "./DashboardProvider";
 
 const OPTIONS: { value: SystemMode; label: string; icon: typeof Bot; hint: string }[] = [
-  { value: "auto", label: "Tự động", icon: Bot, hint: "Thiết bị tự hoạt động theo cảm biến (logic chạy trên ESP32)." },
+  { value: "auto", label: "Tự động", icon: Bot, hint: "Các thiết bị tự hoạt động theo điều kiện đã thiết lập." },
   { value: "manual", label: "Thủ công", icon: Hand, hint: "Thiết bị chỉ hoạt động khi bạn bật/tắt trên giao diện." },
 ];
 
@@ -61,7 +61,7 @@ export function ModeSwitch() {
         ))}
       </div>
       <p className="muted mt-3">
-        {pending ? "Đang chờ ESP32 xác nhận..." : OPTIONS.find((o) => o.value === shown)?.hint}
+        {pending ? "Đang chuyển chế độ..." : OPTIONS.find((o) => o.value === shown)?.hint}
       </p>
       {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
     </section>

@@ -1,6 +1,88 @@
+# Local settings, credentials and certificates
 .env
 .env.*
 !.env.example
 !.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+ngrok.yml
+ngrok.yaml
+
+# Python virtual environments and generated caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Runtime databases and backups
 *.db
 *.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.db.bak
+*.bak
+
+# AI weights/checkpoints, including auto-downloaded files
+*.pt
+*.pth
+*.onnx
+*.engine
+*.ckpt
+*.safetensors
+*.tflite
+*.h5
+
+# Windows-only ADB binaries and other locally installed tools
+/backend/models/**
+!/backend/models/**/
+!/backend/models/**/.gitkeep
+/backend/tools/**
+!/backend/tools/**/
+!/backend/tools/**/.gitkeep
+ngrok.exe
+
+# Node/Next.js generated output; do not ignore lock files
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Runtime recordings, local uploads, temporary files and logs
+uploads/
+recordings/
+recorded/
+snapshots/
+captures/
+media/
+logs/
+*.log
+*.log.*
+.cache/
+tmp/
+temp/
+*.tmp
+
+# Local archives and OS/editor metadata
+*.zip
+*.7z
+*.rar
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo

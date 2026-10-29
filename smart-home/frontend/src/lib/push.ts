@@ -18,13 +18,13 @@ export async function currentPush() {
 }
 
 export async function enablePush() {
-  if (!pushSupported()) throw new Error("Trình duyệt chưa hỗ trợ Web Push.");
+  if (!pushSupported()) throw new Error("Thiết bị này chưa hỗ trợ nhận thông báo.");
   // Start the permission prompt from a real click/tap gesture.
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Bạn chưa cấp quyền thông báo.");
   const worker = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
   const keyResponse = await fetch(`${API_URL}/api/push/public-key`, { credentials: "include" });
-  if (!keyResponse.ok) throw new Error("Chưa cấu hình VAPID hoặc phiên đăng nhập hết hạn.");
+  if (!keyResponse.ok) throw new Error("Chưa thể bật thông báo. Vui lòng thử đăng nhập lại hoặc liên hệ người quản lý.");
   const { publicKey } = await keyResponse.json() as { publicKey: string };
   const subscription = await worker.pushManager.subscribe({
     userVisibleOnly: true,
@@ -50,15 +50,6 @@ export async function disablePush() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error("Không thể hủy đăng ký từ máy chủ.");
+  if (!response.ok) throw new Error("Chưa thể tắt thông báo. Vui lòng thử lại.");
   await subscription.unsubscribe();
-}
-
-export async function testPush() {
-  const response = await fetch(`${API_URL}/api/push/test`, {
-    method: "POST", credentials: "include",
-  });
-  if (!response.ok) throw new Error(response.status === 429
-    ? "Bạn đã thử quá nhiều lần trong một phút." : "Không gửi được thông báo kiểm tra.");
-  return response.json() as Promise<{ configured: boolean; sent: number; total: number }>;
 }

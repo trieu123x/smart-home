@@ -98,11 +98,11 @@ function DeviceForm({ onDone }: { onDone: () => Promise<void> }) {
   return (
     <form onSubmit={submit} className="card grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <div>
-        <label className="muted">Mã thiết bị (trùng với firmware)</label>
+        <label className="muted">Mã nhận dạng thiết bị</label>
         <input
           required
           className="input mt-1"
-          placeholder="esp32-phongbep"
+          placeholder="Ví dụ: cambien-phongbep"
           value={form.code}
           onChange={(event) => setForm({ ...form, code: event.target.value })}
         />

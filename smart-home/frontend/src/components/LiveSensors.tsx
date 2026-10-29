@@ -121,7 +121,7 @@ export function LiveSensors() {
           color={CHART_COLORS.humidity}
           value={hum === undefined ? "--" : String(Math.round(hum))}
           unit="%"
-          hint="DHT22"
+          hint="Độ ẩm trong không khí"
           badge={comfortBadge}
           stale={stale}
           trend={liveHistory.map((sample) => sample.hum)}
@@ -135,7 +135,7 @@ export function LiveSensors() {
           hint={
             ldr === undefined
               ? `Ngưỡng tối ${DARK_PERCENT}%`
-              : `ADC ${Math.round(ldr)} · ngưỡng tối ${DARK_PERCENT}%`
+              : `Mức sáng ${brightness}% · ngưỡng tối ${DARK_PERCENT}%`
           }
           badge={
             dark === undefined
@@ -171,8 +171,8 @@ export function LiveSensors() {
           }
           hint={
             gasBase === undefined
-              ? "Chưa có giá trị nền"
-              : `ADC ${gas === undefined ? "--" : Math.round(gas)} · nền ${Math.round(gasBase)}`
+              ? "Đang xác định mức bình thường"
+              : `Chênh lệch so với mức bình thường: ${gasInfo?.delta == null ? "--" : signed(Math.round(gasInfo.delta))}`
           }
           badge={gasInfo && GAS_BADGE[gasInfo.level]}
           stale={stale}
@@ -193,7 +193,7 @@ export function LiveSensors() {
           color={CHART_COLORS.motion}
           textValue
           value={s.motion === undefined ? "--" : s.motion ? "Có người" : "Không có người"}
-          hint={!s.motion && lastMotion ? `Lần cuối ${timeAgo(lastMotion)}` : "Cảm biến PIR"}
+          hint={!s.motion && lastMotion ? `Lần cuối ${timeAgo(lastMotion)}` : "Theo dõi chuyển động trong nhà"}
           stale={stale}
         >
           <PresenceStrip

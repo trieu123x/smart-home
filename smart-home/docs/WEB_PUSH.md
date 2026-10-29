@@ -1,3 +1,5 @@
+> **Hybrid deployment note:** The backend and VAPID keys now live in the Windows `backend/.venv` + `backend/.env`; Docker builds Next.js only. Use [HYBRID_WINDOWS.md](HYBRID_WINDOWS.md) for current setup commands. The Docker backend instructions below are legacy.
+
 # Web Push notifications — Smart Home (Android and iPhone)
 
 This integration extends the existing FastAPI + Next.js dashboard; no firmware changes, Firebase, or Telegram replacement are needed.
