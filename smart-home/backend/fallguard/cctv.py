@@ -1,5 +1,6 @@
 """USB ADB phone-camera capture for FallGuard via bundled scrcpy server."""
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -9,6 +10,26 @@ from .telegram_config import _settings
 
 def setting(key, default=''):
     return os.environ.get(key, _settings.get(key, default)).strip()
+
+ADB_SOURCES = ('adb:back', 'adb:front', 'adb:display')
+
+# ----- KẾT NỐI VỚI DROIDCAM -------
+def normalize_url(raw):
+    """adb:* (Android USB) | droidcam:IP[:cong] (iPhone) | http(s)/rtsp URL."""
+    value = raw.strip()
+    lowered = value.lower()
+    if lowered in ADB_SOURCES:
+        return lowered
+    if lowered.startswith('droidcam:'):
+        host = value.split(':', 1)[1].strip().strip('/')
+        if not re.fullmatch(r'[A-Za-z0-9.-]+(:\d{1,5})?', host):
+            raise ValueError('droidcam phai co dang droidcam:192.168.1.50 hoac droidcam:192.168.1.50:4747.')
+        if ':' not in host:
+            host += ':4747'
+        return f'http://{host}/video'
+    if lowered.startswith(('http://', 'https://', 'rtsp://')):
+        return value
+    raise ValueError('CCTV_URL phai la adb:back, adb:front, adb:display, droidcam:<IP> hoac URL http(s)/rtsp.')
 
 
 @dataclass(frozen=True)
@@ -21,9 +42,7 @@ class CameraSettings:
 
     @classmethod
     def load(cls):
-        url = setting('CCTV_URL', 'adb:back').lower()
-        if url not in ('adb:back', 'adb:front', 'adb:display'):
-            raise ValueError('CCTV_URL phai la adb:back, adb:front hoac adb:display.')
+        url = normalize_url(setting('CCTV_URL', 'adb:back'))
         try:
             threshold = float(setting('CCTV_FALL_THRESHOLD', '0.80'))
             confirmations = int(setting('CCTV_CONFIRMATIONS', '3'))
@@ -37,9 +56,15 @@ class CameraSettings:
 
 
 def open_camera(url):
-    """Stream native phone camera or Android screen over USB ADB -> raw H264."""
-    from .adb_camera import AdbH264Capture
-    return AdbH264Capture(url)
+    """Android: USB ADB -> raw H264. iPhone/DroidCam: MJPEG qua WiFi (http)."""
+    if url.startswith('adb:'):
+        from .adb_camera import AdbH264Capture
+        return AdbH264Capture(url)
+    import cv2
+    # Timeout de khong bi treo khi dien thoai tat app / mat WiFi.
+    return cv2.VideoCapture(url, cv2.CAP_FFMPEG, [
+        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000,
+        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000])
 
 class CameraReader:
     """Only this thread owns VideoCapture; callers never release it during read()."""
