@@ -48,6 +48,7 @@ export function ModeSwitch() {
         {OPTIONS.map(({ value, label, icon: Icon }) => (
           <button
             key={value}
+            aria-pressed={shown === value}
             disabled={disabled}
             onClick={() => void choose(value)}
             className={clsx(

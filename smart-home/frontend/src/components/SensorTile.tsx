@@ -87,7 +87,7 @@ export function SensorTile({
 
       <div className="mt-auto pt-3">
         <div
-          className={clsx("-mx-5 -mb-5 h-8", stale && "text-slate-600")}
+          className={clsx("-mx-4 -mb-4 h-8 sm:-mx-5 sm:-mb-5", stale && "text-slate-600")}
           style={stale ? undefined : { color }}
         >
           {trend && (
