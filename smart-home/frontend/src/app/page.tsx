@@ -33,45 +33,33 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Chế độ + đường truyền */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ModeSwitch />
-        <LiveStatus />
-      </div>
-
-      {/* Cảm biến trực tiếp từ ESP32 */}
+    <div className="space-y-6">
       <LiveSensors />
-
-      {/* Thiết bị + video */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <ActuatorPanel />
-        <div className="xl:col-span-2">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(20rem,1fr)]">
+        <div className="min-w-0">
           <FallDetection />
         </div>
-      </div>
-
-      {/* Biểu đồ lịch sử + nhật ký */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <SensorChart series={series} />
+        <div className="min-w-0 space-y-4">
+          <ModeSwitch />
+          <ActuatorPanel />
         </div>
-
-        <div className="card">
+      </div>
+      <div className="card">
           <div className="flex items-center justify-between">
             <h2 className="card-title">Sự kiện gần đây</h2>
-            <Link href="/events" className="muted hover:text-slate-300">
+            <Link href="/events" className="text-sm text-brand-400 hover:text-brand-500">
               Xem tất cả
             </Link>
           </div>
           <div className="mt-1 max-h-[22rem] overflow-y-auto pr-1">
-            <EventFeed events={events.slice(0, 12)} />
+            <EventFeed events={events.slice(0, 4)} />
           </div>
-        </div>
       </div>
-
-      <ActivityChart data={activity} />
-
+      <details className="card group">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">Lịch sử & thống kê <span className="ml-2 text-xs font-normal text-slate-400">Biểu đồ cảm biến và hoạt động trong 24 giờ</span></summary>
+        <div className="mt-5 space-y-5">
+          <SensorChart series={series} />
+          <ActivityChart data={activity} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Thiết bị đang kết nối"
@@ -102,6 +90,12 @@ export default function DashboardPage() {
           tone={summary.unacknowledged_alerts > 0 ? "warning" : "good"}
         />
       </div>
+        </div>
+      </details>
+      <details className="card">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">Trạng thái kết nối hệ thống</summary>
+        <div className="mt-4"><LiveStatus /></div>
+      </details>
     </div>
   );
 }

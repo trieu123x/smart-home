@@ -10,17 +10,27 @@ body {
   @apply bg-ink-950 text-slate-200 antialiased;
 }
 
+button, a, input, select, summary {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950;
+}
+
+button:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+html { color-scheme: dark; }
+
 @layer components {
   .card {
-    @apply rounded-2xl border border-white/5 bg-ink-900 p-5 shadow-card;
+    @apply rounded-2xl border border-white/10 bg-ink-900 p-4 shadow-card sm:p-5;
   }
 
   .card-title {
-    @apply text-sm font-semibold text-slate-200;
+    @apply text-base font-semibold text-slate-100;
   }
 
   .muted {
-    @apply text-xs text-slate-500;
+    @apply text-xs leading-5 text-slate-400;
   }
 
   .chip {
@@ -28,7 +38,7 @@ body {
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition;
   }
 
   .btn-primary {

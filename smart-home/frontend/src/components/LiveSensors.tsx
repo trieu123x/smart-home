@@ -99,7 +99,9 @@ export function LiveSensors() {
     <div className="space-y-4">
       <HomeSummary sensors={s} stale={stale} age={age} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <details className="rounded-2xl border border-white/10 bg-ink-900/40 p-4">
+        <summary className="cursor-pointer text-sm font-medium text-slate-300">Chi tiết cảm biến <span className="ml-2 text-xs font-normal text-slate-400">Nhiệt độ, độ ẩm, ánh sáng, gas và chuyển động</span></summary>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 2xl:grid-cols-5">
         <SensorTile
           label="Nhiệt độ"
           icon={Thermometer}
@@ -204,6 +206,7 @@ export function LiveSensors() {
           />
         </SensorTile>
       </div>
+      </details>
     </div>
   );
 }

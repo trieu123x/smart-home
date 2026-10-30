@@ -19,7 +19,8 @@ export function Sidebar() {
   const { summary, connected } = useDashboard();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/5 bg-ink-900 p-5 lg:flex">
+    <>
+    <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-white/5 bg-ink-900 p-4 lg:flex">
       <div className="flex items-center gap-3 px-1">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500/15 text-brand-400">
           <Home size={20} />
@@ -30,13 +31,14 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="mt-8 space-y-1">
+      <nav aria-label="Điều hướng chính" className="mt-8 space-y-1">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                 active
@@ -66,5 +68,15 @@ export function Sidebar() {
         </p>
       </div>
     </aside>
+    <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-ink-900/95 px-2 pt-2 backdrop-blur lg:hidden" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
+      {NAV.map(({ href, label, icon: Icon }) => (
+        <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}
+          className={clsx("relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs", pathname === href ? "bg-brand-500/10 text-brand-400" : "text-slate-400")}>
+          <Icon size={20} /><span>{label}</span>
+          {href === "/events" && !!summary?.unacknowledged_alerts && <span className="absolute right-3 top-0 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{summary.unacknowledged_alerts}</span>}
+        </Link>
+      ))}
+    </nav>
+    </>
   );
 }

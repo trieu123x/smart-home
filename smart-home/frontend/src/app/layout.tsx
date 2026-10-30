@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Topbar />
               <FallAlertBanner />
               <GasAlertBanner />
-              <main className="flex-1 px-4 pb-10 pt-4 sm:px-6 lg:px-8">{children}</main>
+              <main id="main-content" className="mx-auto w-full max-w-[1600px] flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-10">{children}</main>
             </div>
           </div>
         </DashboardProvider></DashboardSession>

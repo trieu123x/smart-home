@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Bell, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Bell, LogOut, RefreshCw, Settings2, Wifi, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -27,8 +27,8 @@ export function Topbar() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
+    try { await refresh(); }
+    finally { setRefreshing(false); }
   };
 
   return (
@@ -40,8 +40,6 @@ export function Topbar() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <QuickActions />
-          <button className="btn-ghost" onClick={logout}>Đăng xuất</button>
           <span
             className={clsx(
               "chip",
@@ -57,7 +55,7 @@ export function Topbar() {
             Làm mới
           </button>
 
-          <Link href="/events" className="relative rounded-xl border border-white/10 p-2.5 hover:bg-white/5">
+          <Link href="/events" aria-label="Xem cảnh báo" className="relative rounded-xl border border-white/10 p-3 hover:bg-white/5">
             <Bell size={16} />
             {summary && summary.unacknowledged_alerts > 0 && (
               <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
@@ -65,6 +63,14 @@ export function Topbar() {
               </span>
             )}
           </Link>
+          <details className="relative">
+            <summary aria-label="Mở cài đặt" className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 [&::-webkit-details-marker]:hidden"><Settings2 size={18} /></summary>
+            <div className="absolute right-0 top-full z-40 mt-2 w-[min(21rem,calc(100vw-2rem))] space-y-4 rounded-2xl border border-white/10 bg-ink-900 p-4 shadow-2xl">
+              <p className="card-title">Cài đặt & tiện ích</p>
+              <QuickActions />
+              <button className="btn-ghost w-full" onClick={logout}><LogOut size={16} />Đăng xuất</button>
+            </div>
+          </details>
         </div>
       </div>
     </header>
