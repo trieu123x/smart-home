@@ -1,6 +1,16 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -32,6 +42,8 @@ class Device(Base):
 
     readings: Mapped[list["Reading"]] = relationship(back_populates="device", cascade="all, delete-orphan")
     events: Mapped[list["Event"]] = relationship(back_populates="device", cascade="all, delete-orphan")
+    # SQLite does not enforce ON DELETE CASCADE without a pragma, so the ORM deletes rollups too
+    rollups: Mapped[list["ReadingRollup"]] = relationship(cascade="all, delete-orphan")
 
 
 class Reading(Base):
@@ -46,6 +58,27 @@ class Reading(Base):
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
     device: Mapped[Device] = relationship(back_populates="readings")
+
+
+class ReadingRollup(Base):
+    """Per-device aggregate of one metric over a closed 1-minute or 1-hour bucket."""
+
+    __tablename__ = "reading_rollups"
+    __table_args__ = (
+        UniqueConstraint("device_id", "metric", "bucket", "bucket_start", name="uq_rollup_bucket"),
+        Index("ix_rollup_metric_bucket_start", "metric", "bucket", "bucket_start"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"))
+    metric: Mapped[str] = mapped_column(String(32))
+    # 1m | 1h
+    bucket: Mapped[str] = mapped_column(String(4))
+    bucket_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    count: Mapped[int] = mapped_column(Integer)
+    min: Mapped[float] = mapped_column(Float)
+    max: Mapped[float] = mapped_column(Float)
+    avg: Mapped[float] = mapped_column(Float)
 
 
 class Event(Base):

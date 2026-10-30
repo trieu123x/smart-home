@@ -10,8 +10,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
-import { WS_URL, api } from "@/lib/api";
+import { api, redirectToLogin, wsUrl } from "@/lib/api";
 import { appendSample, type LiveSample } from "@/lib/sensorLogic";
 import type {
   ActivityBucket,
@@ -73,7 +74,12 @@ function toSample(state: LiveState): LiveSample | null {
   };
 }
 
+/** WebSocket close code the backend uses for a missing or invalid login token. */
+const WS_UNAUTHORIZED = 4401;
+
 export function DashboardProvider({ children }: { children: ReactNode }) {
+  // The login page needs no data; fetching there would bounce straight back to /login
+  const active = usePathname() !== "/login";
   const [live, setLiveState] = useState<LiveState | null>(null);
   const [liveHistory, setLiveHistory] = useState<LiveSample[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -138,17 +144,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (active) void refresh();
+  }, [active, refresh]);
 
   // Kết nối WebSocket, tự động thử lại khi rớt
   useEffect(() => {
+    if (!active) return;
     let socket: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
 
     const connect = () => {
-      socket = new WebSocket(WS_URL);
+      socket = new WebSocket(wsUrl());
 
       socket.onopen = () => {
         setConnected(true);
@@ -190,8 +197,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         setConnected(false);
+        if (event.code === WS_UNAUTHORIZED) {
+          redirectToLogin();
+          return;
+        }
         if (!closed) retry = setTimeout(connect, 3000);
       };
 
@@ -204,7 +215,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (retry) clearTimeout(retry);
       socket?.close();
     };
-  }, [scheduleRefresh, setLive]);
+  }, [active, scheduleRefresh, setLive]);
 
   const setMode = useCallback(async (mode: SystemMode) => {
     const updated = await api.setMode(mode);

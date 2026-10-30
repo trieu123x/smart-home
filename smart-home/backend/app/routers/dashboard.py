@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -118,20 +119,32 @@ def get_series(
     hours: int = Query(default=6, ge=1, le=168),
     points: int = Query(default=60, ge=10, le=500),
 ):
-    """Chuoi du lieu da lam thua cho bieu do (lay deu <points> diem gan nhat)."""
+    """Chuoi du lieu da lam thua cho bieu do (lay deu <points> diem tren ca khoang thoi gian).
+
+    Up to 6 h reads raw rows, up to 48 h reads 1m rollup averages, longer ranges 1h rollups.
+    """
     since = services.utcnow() - timedelta(hours=hours)
     result: list[schemas.MetricSeries] = []
 
     for metric in [m.strip() for m in metrics.split(",") if m.strip()]:
-        rows = db.execute(
-            select(models.Reading.ts, models.Reading.value)
-            .where(models.Reading.metric == metric, models.Reading.ts >= since)
-            .order_by(models.Reading.ts.desc())
-            .limit(points * 10)
-        ).all()
-        rows = list(reversed(rows))
-        step = max(1, len(rows) // points)
-        sampled = rows[::step][-points:]
+        if hours <= 6:
+            query = select(models.Reading.ts, models.Reading.value).where(
+                models.Reading.metric == metric, models.Reading.ts >= since
+            ).order_by(models.Reading.ts)
+        else:
+            rollup = models.ReadingRollup
+            query = (
+                select(rollup.bucket_start, rollup.avg)
+                .where(
+                    rollup.metric == metric,
+                    rollup.bucket == ("1m" if hours <= 48 else "1h"),
+                    rollup.bucket_start >= since,
+                )
+                .order_by(rollup.bucket_start)
+            )
+        rows = db.execute(query).all()
+        step = max(1, math.ceil(len(rows) / points))
+        sampled = rows[::step]
         result.append(
             schemas.MetricSeries(
                 metric=metric,

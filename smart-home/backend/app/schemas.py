@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
@@ -189,3 +189,37 @@ class ModeIn(BaseModel):
 class CommandIn(BaseModel):
     device: Literal["light", "fan", "buzzer"]
     state: bool
+
+
+# ---------- Analytics ----------
+class RollupPoint(BaseModel):
+    bucket_start: UtcDatetime
+    min: float
+    max: float
+    avg: float
+    count: int
+
+
+class MetricStats(BaseModel):
+    metric: str
+    min: float
+    max: float
+    avg: float
+    count: int
+    anomalies: int
+
+
+class LakePartition(BaseModel):
+    date: date
+    rows: int
+    bytes: int
+
+
+# ---------- Auth ----------
+class LoginIn(BaseModel):
+    password: str = Field(max_length=256)
+
+
+class LoginOut(BaseModel):
+    token: str
+    expires_at: UtcDatetime

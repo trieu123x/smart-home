@@ -19,7 +19,8 @@ smart-home backend (`smart-home/backend/`):
 - Dev: `.venv/Scripts/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 - Build check: `.venv/Scripts/python -m compileall -q app simulator.py simulator_mqtt.py`
 - Simulate ESP32: `.venv/Scripts/python simulator_mqtt.py --prefix ptit_sh_k7x2q9/home/` (MQTT) or `simulator.py --interval 3` (HTTP)
-- No tests exist yet.
+- Test: `.venv/Scripts/python -m pip install -r requirements-dev.txt` then `.venv/Scripts/python -m pytest -q tests`
+- Analytics CLI: `.venv/Scripts/python -m app.analytics export --date YYYY-MM-DD [--force]`
 
 smart-home frontend (`smart-home/frontend/`):
 - Install: `npm ci`
@@ -56,7 +57,7 @@ Anti-theft (`Anti_theft_web/`):
 - All three Python apps default to port 8000. FallGuard honours `PORT`; Anti-theft hardcodes 8000 in `run.py`.
 - `smart-home/backend/venv/` is a stale venv from another machine (gitignored). Use `.venv`.
 - Python 3.15 is the default `python` on this machine; use `py -3.13` for venvs (wheels for 3.15 may be missing).
-- Backend env vars (`smart-home/backend/.env`): `DATABASE_URL`, `DEVICE_API_KEY` (ESP32 sends it as `X-Device-Key`), `CORS_ORIGINS`, `MQTT_ENABLED`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASS`, `MQTT_PREFIX`, `MQTT_OFFLINE_AFTER`, `MQTT_HISTORY_SECONDS`, `SEED_DEMO`. Set `MQTT_ENABLED=false` to run without a broker.
+- Backend env vars (`smart-home/backend/.env`): `DATABASE_URL`, `DEVICE_API_KEY` (ESP32 sends it as `X-Device-Key`), `CORS_ORIGINS`, `MQTT_ENABLED`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASS`, `MQTT_PREFIX`, `MQTT_OFFLINE_AFTER`, `MQTT_HISTORY_SECONDS`, `MQTT_TLS`, `SEED_DEMO`, `CLOUD_SINK_ENABLED`, `CLOUD_SINK_URL`, `CLOUD_SINK_USER`, `CLOUD_SINK_TOKEN`, `CLOUD_SINK_INTERVAL`, `CLOUD_SINK_MAX_BUFFER`, `LAKE_DIR`, `RAW_RETENTION_DAYS`, `ANOMALY_Z`, `DASHBOARD_PASSWORD`, `AUTH_SECRET`, `AUTH_TOKEN_HOURS`. Set `MQTT_ENABLED=false` to run without a broker. An empty `DASHBOARD_PASSWORD` leaves the dashboard APIs open.
 - Frontend env vars (`.env.local`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_VIDEO_URL`.
 - FallGuard env vars: `FALLGUARD_PASSWORD` (required, at least 12 chars), `CCTV_URL` (`adb:back|front|display`), `ADB_*`, `FALL_DEVICE`, `TELEGRAM_GATEWAY_URL`, `TELEGRAM_GATEWAY_KEY`. Telegram goes through a gateway, never the Bot API directly.
 - FallGuard and `CHECK_ADB_CAMERA` both use ADB port 27183; don't run them at the same time. Tests mock ADB and don't prove real camera support.

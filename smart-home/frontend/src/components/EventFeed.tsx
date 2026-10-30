@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import {
+  Activity,
   AlertTriangle,
   Check,
   Flame,
@@ -27,6 +28,7 @@ const ICONS: Record<string, LucideIcon> = {
   manual: Hand,
   device_online: PlugZap,
   device_offline: Plug,
+  anomaly: Activity,
 };
 
 const SEVERITY_STYLE: Record<string, string> = {

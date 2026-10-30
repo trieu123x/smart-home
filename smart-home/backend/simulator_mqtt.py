@@ -3,6 +3,7 @@
 Chay:   python simulator_mqtt.py
 Tuy chon: --host broker.hivemq.com --prefix ptit_sh_k7x2q9/home/ --interval 1
           --gas-at 20   (sau 20 giay gia lap ro ri gas trong 10 giay)
+          --tls --port 8883 --user <u> --password <p>   (private broker, e.g. HiveMQ Cloud)
 
 Trong luc chay, go lenh + Enter:  g = bat/tat ro ri gas | m = bat/tat chuyen dong | d = bat/tat troi toi
 
@@ -26,6 +27,9 @@ parser.add_argument("--port", type=int, default=1883)
 parser.add_argument("--prefix", default="ptit_sh_k7x2q9/home/")
 parser.add_argument("--interval", type=float, default=1.0)
 parser.add_argument("--gas-at", type=float, default=0, help="giay bat dau gia lap gas (0 = tat)")
+parser.add_argument("--user", default="", help="broker username (HiveMQ Cloud credential)")
+parser.add_argument("--password", default="", help="broker password")
+parser.add_argument("--tls", action="store_true", help="connect with TLS (use --port 8883)")
 args = parser.parse_args()
 
 P = args.prefix if args.prefix.endswith("/") else args.prefix + "/"
@@ -82,6 +86,10 @@ def stdin_loop():
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="esp32-simulator")
 client.will_set(T_STATUS, "offline", qos=1, retain=True)
 client.on_connect, client.on_message = on_connect, on_message
+if args.user:
+    client.username_pw_set(args.user, args.password)
+if args.tls:
+    client.tls_set()
 client.connect(args.host, args.port, keepalive=10)
 client.loop_start()
 threading.Thread(target=stdin_loop, daemon=True).start()

@@ -25,7 +25,7 @@ from typing import Any
 import paho.mqtt.client as mqtt
 from sqlalchemy.orm import Session
 
-from . import models, services
+from . import cloud_sink, models, services
 from .bridge_devices import ACTUATORS, ROOM, SENSOR_CODE, SENSOR_NAME
 from .config import settings
 from .database import SessionLocal
@@ -182,6 +182,9 @@ async def _store_readings(db: Session, sensor: models.Device, data: dict[str, An
                 "ts": stamp,
             },
         )
+    cloud_sink.enqueue(
+        sensor.code, {metric: value for metric, value in values.items() if value is not None}, stamp
+    )
 
 
 # ---------------------------------------------------------------- xu ly ban tin
@@ -311,7 +314,10 @@ def _on_connect(client, userdata, flags, reason_code, properties=None) -> None:
         _state["broker_ok"] = ok
     if ok:
         client.subscribe([(T_SENSORS, 0), (T_STATUS, 1), (T_MODE, 1)])
-        _log(f"da ket noi broker {settings.mqtt_host}:{settings.mqtt_port}, prefix={PREFIX}")
+        tls = "on" if settings.mqtt_tls else "off"
+        _log(
+            f"da ket noi broker {settings.mqtt_host}:{settings.mqtt_port}, tls={tls}, prefix={PREFIX}"
+        )
     else:
         _log(f"ket noi broker that bai: {reason_code}")
     _schedule(_push_live())
@@ -342,6 +348,8 @@ def start(loop: asyncio.AbstractEventLoop) -> None:
     )
     if settings.mqtt_user:
         client.username_pw_set(settings.mqtt_user, settings.mqtt_pass)
+    if settings.mqtt_tls:
+        client.tls_set()  # OS CA store; HiveMQ Cloud uses a Let's Encrypt chain
     client.on_connect = _on_connect
     client.on_disconnect = _on_disconnect
     client.on_message = _on_message

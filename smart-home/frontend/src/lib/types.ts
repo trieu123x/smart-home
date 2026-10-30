@@ -68,6 +68,38 @@ export interface ActivityBucket {
   automation: number;
 }
 
+export type RollupBucket = "1m" | "1h";
+
+/** Min/avg/max of one metric over a closed bucket (UTC). */
+export interface RollupPoint {
+  bucket_start: string;
+  min: number;
+  max: number;
+  avg: number;
+  count: number;
+}
+
+export interface MetricStats {
+  metric: string;
+  min: number;
+  max: number;
+  avg: number;
+  count: number;
+  anomalies: number;
+}
+
+/** One daily Parquet partition in the local data lake. */
+export interface LakePartition {
+  date: string;
+  rows: number;
+  bytes: number;
+}
+
+export interface LoginResult {
+  token: string;
+  expires_at: string;
+}
+
 export type SystemMode = "auto" | "manual";
 export type ControlKey = "light" | "fan" | "buzzer";
 

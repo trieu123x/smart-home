@@ -8,6 +8,8 @@ from ..database import get_db
 from ..security import require_device_key
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
+# Device-facing routes: authenticated by X-Device-Key, not by the dashboard login
+device_router = APIRouter(prefix="/api/devices", tags=["device-api"])
 
 
 @router.get("", response_model=list[schemas.DeviceOut])
@@ -100,7 +102,7 @@ async def toggle_device(
     return device
 
 
-@router.get("/{code}/commands", response_model=list[schemas.CommandOut])
+@device_router.get("/{code}/commands", response_model=list[schemas.CommandOut])
 def pull_commands(
     code: str,
     db: Session = Depends(get_db),

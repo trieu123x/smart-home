@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import models
+from . import cloud_sink, models
 from .bridge_devices import BRIDGED_CODES
 from .realtime import manager
 
@@ -210,6 +210,7 @@ async def record_telemetry(
         readings.append(reading)
 
     db.flush()
+    cloud_sink.enqueue(device.code, {reading.metric: reading.value for reading in readings}, stamp)
 
     if was_offline:
         await manager.broadcast("device", device_payload(device))

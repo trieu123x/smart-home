@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Activity, Bell, Home, LayoutDashboard, Plug, Workflow } from "lucide-react";
+import { Activity, BarChart3, Bell, Home, LayoutDashboard, Plug, Workflow } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/devices", label: "Thiết bị", icon: Plug },
   { href: "/automations", label: "Tự động hóa", icon: Workflow },
   { href: "/events", label: "Cảnh báo", icon: Bell },
+  { href: "/analytics", label: "Phân tích", icon: BarChart3 },
 ];
 
 export function Sidebar() {

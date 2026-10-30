@@ -13,6 +13,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/devices": { title: "Thiết bị", subtitle: "Bật/tắt thủ công và quản lý chế độ tự động" },
   "/automations": { title: "Tự động hóa", subtitle: "Các luật điều khiển quạt, đèn và còi báo" },
   "/events": { title: "Cảnh báo & nhật ký", subtitle: "Lịch sử sự kiện của toàn hệ thống" },
+  "/analytics": { title: "Phân tích", subtitle: "Thống kê, bất thường và kho dữ liệu Parquet" },
 };
 
 export function Topbar() {

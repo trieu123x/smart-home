@@ -187,6 +187,105 @@ X-Device-Key: esp32-secret-key
 | POST | `/api/events/{id}/ack` | xác nhận đã xử lý cảnh báo |
 | GET/POST/PATCH/DELETE | `/api/automations` | quản lý luật tự động |
 | WS | `/ws` | kênh realtime đẩy `device` / `event` / `reading` / `automation` |
+| POST | `/api/auth/login` | `{password}` → `{token, expires_at}` (public, 5 failures/min/IP) |
+| GET | `/api/analytics/rollups?metric=temperature&bucket=1h&hours=168` | min/avg/max per bucket |
+| GET | `/api/analytics/stats?hours=24` | per-metric stats and anomaly count |
+| GET | `/api/analytics/lake` | Parquet partitions, newest first |
+| GET | `/api/health` | public; includes `mqtt_broker` and `cloud_sink` status |
+
+## Cloud and data pipeline
+
+Everything below is free-tier and optional. With an unchanged `.env` the app behaves
+as before (public `broker.hivemq.com:1883`, no cloud sink, no login).
+
+### Private MQTT broker (HiveMQ Cloud, TLS)
+
+1. Create a free **HiveMQ Cloud Serverless** cluster at console.hivemq.cloud.
+2. Under *Access Management*, create two credentials: `esp32` and `backend`
+   (publish + subscribe).
+3. Backend `.env`:
+   ```
+   MQTT_HOST=<cluster-id>.s1.eu.hivemq.cloud
+   MQTT_PORT=8883
+   MQTT_TLS=true
+   MQTT_USER=backend
+   MQTT_PASS=<backend password>
+   ```
+   The backend log shows `da ket noi broker ... tls=on`.
+4. Firmware: set `MQTT_HOST`, `MQTT_USER=esp32` and `MQTT_PASS` at the top of
+   `esp32_smart_home.ino` and reflash. It uses `WiFiClientSecure` on port 8883 with the
+   ISRG Root X1 CA embedded (valid until 2035). A wrong CA shows `MQTT: loi rc=-2`.
+5. Simulator: `python simulator_mqtt.py --host <cluster>.s1.eu.hivemq.cloud --port 8883 --tls --user esp32 --password <p>`.
+
+Topics and payloads are unchanged; only host, port, TLS and credentials differ.
+
+### Cloud time-series sink (Grafana Cloud)
+
+The backend pushes every stored reading in Influx line protocol
+(`smarthome,device=esp32-main temperature=27.5,humidity=61,... <ns>`), buffered in memory
+and flushed every `CLOUD_SINK_INTERVAL` seconds. If the cloud is down the buffer keeps
+up to `CLOUD_SINK_MAX_BUFFER` lines (about 27 h at the ESP32 rate) and retries with
+back-off; SQLite stays the source of truth.
+
+1. Create a free Grafana Cloud stack. In *Connections → Add new connection → InfluxDB*
+   (or the stack's *Details* page) find the Influx write endpoint, the instance ID and
+   create an access policy token with `metrics:write`.
+2. Backend `.env`:
+   ```
+   CLOUD_SINK_ENABLED=true
+   CLOUD_SINK_URL=https://influx-<region>.grafana.net/api/v1/push/influx/write
+   CLOUD_SINK_USER=<instance id>
+   CLOUD_SINK_TOKEN=<access policy token>
+   ```
+3. `GET /api/health` → `cloud_sink.last_ok` updates every few seconds.
+4. In Grafana, *Dashboards → New → Import* `cloud/grafana-dashboard.json` and pick the
+   stack's Prometheus data source. Series are named `smarthome_temperature{device="esp32-main"}` etc.
+
+InfluxDB Cloud works with the same code: leave `CLOUD_SINK_USER` empty and set
+`CLOUD_SINK_URL=https://<host>/api/v2/write?bucket=<bucket>&org=<org>&precision=ns`
+and `CLOUD_SINK_TOKEN=<API token>`.
+
+### Local analytics pipeline
+
+The background worker, with no extra setup:
+
+- **Rollups** (`reading_rollups` table): min/max/avg/count per device and metric for every
+  closed 1-minute and 1-hour bucket. `/api/series` serves ranges over 6 h from them.
+- **Parquet lake**: after 00:10 UTC each day, every closed UTC day is written to
+  `LAKE_DIR/readings/date=YYYY-MM-DD/part-0.parquet` (columns `device_code`, `metric`,
+  `value`, `ts`). Manual export: `python -m app.analytics export --date 2026-10-29 [--force]`.
+- **Retention**: raw readings older than `RAW_RETENTION_DAYS` (7) are deleted, but only for
+  days that have a Parquet partition and hourly rollups. 1m rollups are kept 30 days, 1h forever.
+- **Anomalies**: each minute, the newest 1m average of temperature, humidity, gas and LDR
+  is compared with the previous 24 h of 1m averages. `|z| > ANOMALY_Z` (3.0) logs an
+  `anomaly` event (15 min cooldown per device and metric).
+
+The "Phân tích" page shows the 7-day hourly band chart, 24 h stats, anomalies and the lake.
+
+Query the lake with [DuckDB](https://duckdb.org/) (not a project dependency), from `backend/`:
+
+```sql
+SELECT metric, date_trunc('hour', ts) AS hour, avg(value)
+FROM 'data/lake/readings/*/*.parquet'
+GROUP BY ALL ORDER BY hour;
+```
+
+Scale, honestly: one ESP32 writes about 43k rows a day (16M a year). That is small data;
+the point is to use the patterns (managed broker, cloud TSDB, rollups, a partitioned
+columnar lake, streaming anomaly detection) at a size that fits the project.
+
+### Login and remote access (Cloudflare quick tunnel)
+
+1. In `backend/.env` set `DASHBOARD_PASSWORD` (at least 12 characters), a long random
+   `DEVICE_API_KEY` (the default `esp32-secret-key` is public), and optionally a fixed
+   `AUTH_SECRET`. All dashboard APIs and `/ws` then need a token from
+   `POST /api/auth/login`; `/api/ingest/*` and `/api/devices/{code}/commands` keep `X-Device-Key`.
+2. Install cloudflared: `winget install Cloudflare.cloudflared`. Stop anything on ports 8000 and 3000.
+3. Run `powershell -ExecutionPolicy Bypass -File scripts\tunnel.ps1`. It starts the
+   frontend tunnel, then the backend, checks on the running backend that login is
+   enforced and the default device key is rejected, then opens the backend tunnel and
+   builds and starts the frontend in production mode. It prints the dashboard URL;
+   Ctrl+C stops everything. URLs are random on every run; if a tunnel drops, run it again.
 
 ## Ghi chú kỹ thuật
 

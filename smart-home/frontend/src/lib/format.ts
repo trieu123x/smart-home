@@ -64,4 +64,5 @@ export const EVENT_LABEL: Record<string, string> = {
   manual: "Điều khiển tay",
   device_online: "Thiết bị kết nối",
   device_offline: "Mất kết nối",
+  anomaly: "Bất thường",
 };
