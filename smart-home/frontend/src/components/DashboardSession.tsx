@@ -32,13 +32,13 @@ export function DashboardSession({ children }: { children: React.ReactNode }) {
     try { await api.logout(); setAuthenticated(false); }
     catch (err) { window.alert(err instanceof Error ? err.message : "Chưa đăng xuất được."); }
   }
-  if (authenticated === null) return <main className="grid min-h-screen place-items-center text-slate-400">Đang kết nối dashboard…</main>;
+  if (authenticated === null) return <main className="grid min-h-screen place-items-center text-slate-400">Đang mở Smart Home…</main>;
   if (!authenticated) return (
     <main className="grid min-h-screen place-items-center p-6">
       <form onSubmit={login} className="card w-full max-w-sm space-y-4">
         <h1 className="text-xl font-semibold">Smart Home</h1>
         <p className="text-sm text-slate-400">Đăng nhập để quản lý thiết bị, camera và cảnh báo.</p>
-        {!configured && <p role="alert" className="text-sm text-amber-300">Chưa thiết lập mật khẩu dashboard trên máy chủ.</p>}
+        {!configured && <p role="alert" className="text-sm text-amber-300">Hệ thống chưa sẵn sàng để đăng nhập. Vui lòng liên hệ người quản lý.</p>}
         <label className="block text-sm">Mật khẩu
           <input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-ink-950 px-3 py-2 text-white" />
         </label>

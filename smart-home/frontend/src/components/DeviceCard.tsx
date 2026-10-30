@@ -80,7 +80,7 @@ export function DeviceCard({ device }: { device: Device }) {
               device.online ? "bg-brand-400" : "bg-slate-500",
             )}
           />
-          {device.online ? "Online" : "Offline"}
+          {device.online ? "Đã kết nối" : "Mất kết nối"}
         </span>
       </div>
 
@@ -107,7 +107,7 @@ export function DeviceCard({ device }: { device: Device }) {
                 )}
                 title="Cho phép các luật tự động điều khiển thiết bị này"
               >
-                AUTO
+                Tự động
               </button>
             )}
 

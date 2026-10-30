@@ -1,3 +1,5 @@
+> **Legacy all-in-Docker instructions:** The default `docker-compose.yml` now runs only the dashboard. For the new Windows hybrid venv + Docker architecture, read [HYBRID_WINDOWS.md](HYBRID_WINDOWS.md). Commands in this older guide for the Docker Python backend no longer apply to the default compose file.
+
 # Smart Home + Fall Detection in Docker
 
 `docker-compose.yml` starts the dashboard and the Python backend with the integrated

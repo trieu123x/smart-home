@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { WS_URL, api } from "@/lib/api";
+import { isSampleEvent } from "@/lib/format";
 import { appendSample, type LiveSample } from "@/lib/sensorLogic";
 import type {
   ActivityBucket,
@@ -117,13 +118,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setLive(liveData);
       setSummary(summaryData);
       setDevices(deviceList);
-      setEvents(eventList);
+      setEvents(eventList.filter((event) => !isSampleEvent(event)));
       setAutomations(automationList);
       setSeries(seriesData);
       setActivity(activityData);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không gọi được API");
+      setError(err instanceof Error ? err.message : "Không thể cập nhật thông tin. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -169,7 +170,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           );
           scheduleRefresh();
         } else if (message.type === "event") {
-          setEvents((current) => [message.data, ...current].slice(0, 60));
+          if (!isSampleEvent(message.data)) setEvents((current) => [message.data, ...current].slice(0, 60));
           scheduleRefresh();
         } else if (message.type === "reading") {
           const { metric, value, ts } = message.data;
@@ -253,7 +254,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const activeFall = useMemo(
-    () => events.find((event) => event.type === "fall_detected" && !event.acknowledged) ?? null,
+    () => events.find((event) => event.type === "fall_detected" && !event.acknowledged && !isSampleEvent(event)) ?? null,
     [events],
   );
 

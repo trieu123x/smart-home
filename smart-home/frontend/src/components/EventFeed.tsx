@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { EVENT_LABEL, timeAgo } from "@/lib/format";
+import { EVENT_LABEL, displayEventMessage, isSampleEvent, timeAgo } from "@/lib/format";
 import type { SmartEvent } from "@/lib/types";
 
 import { useDashboard } from "./DashboardProvider";
@@ -45,13 +45,14 @@ interface Props {
 export function EventFeed({ events, showAck = false, emptyText = "Chưa có sự kiện nào" }: Props) {
   const { ackEvent } = useDashboard();
 
-  if (events.length === 0) {
+  const visibleEvents = events.filter((event) => !isSampleEvent(event));
+  if (visibleEvents.length === 0) {
     return <p className="py-8 text-center text-sm text-slate-500">{emptyText}</p>;
   }
 
   return (
     <ul className="divide-y divide-white/5">
-      {events.map((event) => {
+      {visibleEvents.map((event) => {
         const Icon = ICONS[event.type] ?? Zap;
         return (
           <li key={event.id} className="flex items-start gap-3 py-3">
@@ -65,7 +66,7 @@ export function EventFeed({ events, showAck = false, emptyText = "Chưa có sự
             </span>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-slate-200">{event.message}</p>
+              <p className="text-sm text-slate-200">{displayEventMessage(event)}</p>
               <p className="muted mt-0.5">
                 {EVENT_LABEL[event.type] ?? event.type}
                 {event.device_name ? ` · ${event.device_name}` : ""} · {timeAgo(event.ts)}

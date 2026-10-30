@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     device_api_key: str = "esp32-secret-key"
     cors_origins: str = "http://localhost:3000"
 
+    # ------ Web Push (shared dashboard recipients) -----
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""
+
     # ------ Telegram -----
     telegram_gateway_url: str = ""
     telegram_gateway_key: str = ""

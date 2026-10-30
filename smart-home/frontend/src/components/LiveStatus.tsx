@@ -17,19 +17,19 @@ export function LiveStatus() {
       <div className="mt-3 space-y-3">
         <Row
           icon={<Radio size={16} />}
-          label="MQTT broker"
+          label="Trung tâm kết nối"
           ok={broker}
           text={broker ? "Đã kết nối" : "Mất kết nối"}
         />
         <Row
           icon={<Cpu size={16} />}
-          label="ESP32"
+          label="Bộ cảm biến"
           ok={esp}
           text={
             esp
-              ? `Online · dữ liệu cách đây ${live?.age?.toFixed(0) ?? 0}s`
+              ? `Đang hoạt động · cập nhật ${live?.age?.toFixed(0) ?? 0} giây trước`
               : live?.age != null
-                ? `Offline · mất tín hiệu ${live.age.toFixed(0)}s`
+                ? `Mất tín hiệu ${live.age.toFixed(0)} giây`
                 : "Chưa nhận được dữ liệu"
           }
         />

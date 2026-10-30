@@ -1,10 +1,12 @@
 """Persist confirmed AI incidents and notify the existing dashboard."""
 import logging
+import asyncio
 from datetime import datetime
 
 from . import models, services, mqtt_bridge
 from .database import SessionLocal
 from .realtime import manager
+from .push_notify import notify_event
 
 log = logging.getLogger(__name__)
 CAMERA_CODE = 'fallguard-camera'
@@ -33,8 +35,7 @@ async def record_incident(incident):
         device.online = True
         device.last_seen = services.utcnow()
         event = models.Event(device_id=device.id, type='fall_detected', severity='critical',
-                             message=(f"{incident['source']} · Phát hiện dấu hiệu té ngã: "
-                                      f"người #{incident['person_id']} · Điểm model {incident['score']:.0%}"),
+                             message="Camera phát hiện dấu hiệu té ngã. Vui lòng kiểm tra ngay.",
                              ts=datetime.fromisoformat(incident['time']))
         db.add(event)
         db.flush()
@@ -49,3 +50,4 @@ async def record_incident(incident):
             await mqtt_bridge.fall_alarm()
         except Exception:
             log.exception('Incident saved but live notification failed')
+        asyncio.create_task(notify_event(payload))

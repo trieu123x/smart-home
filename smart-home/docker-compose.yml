@@ -1,78 +1,25 @@
+# Hybrid Windows: FastAPI + AI runs in backend/.venv on the Windows host.
+# Only the Next.js dashboard is containerized.
 name: smarthome
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: backend
-    image: smarthome-backend:local
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    init: true
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: sqlite:////data/smarthome.db
-      FALL_ASSETS_DIR: /app
-      FALL_DEVICE: cuda:0
-      ADB_EXECUTABLE: /usr/bin/adb
-      ADB_SERVER_HOST: ${ADB_SERVER_HOST:-host.docker.internal}
-      ADB_SERVER_PORT: ${ADB_SERVER_PORT:-5038}
-      ADB_STREAM_HOST: ${ADB_STREAM_HOST:-host.docker.internal}
-      ADB_STREAM_PORT: ${ADB_STREAM_PORT:-27183}
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    volumes:
-      - data:/data
-      - type: bind
-        source: ./backend/.env
-        target: /app/.env
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ./backend/models
-        target: /app/models
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ./backend/tools/adb/scrcpy-server
-        target: /app/tools/adb/scrcpy-server
-        read_only: true
-        bind:
-          create_host_path: false
-    healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 6
-
   dashboard:
     build:
       context: .
       dockerfile: Dockerfile
       target: dashboard
-    image: smarthome-dashboard:local
+      args:
+        API_TARGET: http://host.docker.internal:8000
+    image: smarthome-dashboard:hybrid
     init: true
     restart: unless-stopped
     ports:
-      - "${DASHBOARD_PORT:-3000}:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
-      start_period: 15s
-      retries: 4
-
-volumes:
-  data:
+      start_period: 30s
+      retries: 6

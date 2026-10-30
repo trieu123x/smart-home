@@ -1,9 +1,12 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import schemas, services
 from ..database import get_db
 from ..security import require_device_key
+from ..push_notify import notify_event
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"], dependencies=[Depends(require_device_key)])
 
@@ -43,4 +46,6 @@ async def ingest_event(payload: schemas.EventIn, db: Session = Depends(get_db)):
             device=device,
         )
     db.commit()
+    db.refresh(event)
+    asyncio.create_task(notify_event(services.event_payload(event)))
     return {"id": event.id}

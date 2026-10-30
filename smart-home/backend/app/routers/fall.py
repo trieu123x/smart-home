@@ -1,12 +1,22 @@
 """Fall Detection controls under the shared dashboard session."""
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Literal
 
 router = APIRouter(prefix='/api/fall', tags=['fall detection'])
 
 
 class Analysis(BaseModel):
     enabled: bool
+
+
+class SourceChoice(BaseModel):
+    source: Literal['adb', 'droidcam']
+
+
+class DroidCamConnection(BaseModel):
+    host: str = Field(min_length=7, max_length=45)
+    port: int = Field(default=4747, ge=1024, le=65535)
 
 
 def runtime(request):
@@ -22,25 +32,26 @@ def view(request: Request):
 
 
 @router.get('/frame')
-async def frame(request: Request, seq: int = -1):
-    data, sequence = await runtime(request).frame(seq)
+async def frame(request: Request, seq: int = -1, source: Literal['adb', 'droidcam'] = 'adb'):
+    data, sequence = await runtime(request).frame(seq, source)
     return Response(data, status_code=200 if data else 204, media_type='image/jpeg',
                     headers={'X-Frame-Sequence': str(sequence), 'Cache-Control': 'no-store'})
 
 
 @router.post('/start')
-def start(request: Request):
+def start(request: Request, source: Literal['adb', 'droidcam'] = 'adb'):
     value = runtime(request)
-    if value.camera is None:
-        raise HTTPException(503, value.error or 'Camera chưa sẵn sàng.')
-    value.camera.start()
+    try:
+        value.start_camera(source)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     return value.status()
 
 
 @router.post('/stop')
-def stop(request: Request):
+def stop(request: Request, source: Literal['adb', 'droidcam'] = 'adb'):
     value = runtime(request)
-    value.stop_camera()
+    value.stop_camera(source)
     return value.status()
 
 
@@ -52,6 +63,22 @@ def analysis(payload: Analysis, request: Request):
     except ValueError as exc:
         raise HTTPException(503, str(exc)) from None
     return value.status()
+
+
+@router.post('/source')
+def change_source(payload: SourceChoice, request: Request):
+    try:
+        return runtime(request).set_source(payload.source)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@router.post('/droidcam/connect')
+def connect_droidcam(payload: DroidCamConnection, request: Request):
+    try:
+        return runtime(request).connect_droidcam(payload.host, payload.port)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
 
 
 @router.post('/telegram/test')

@@ -26,15 +26,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (response.status === 401 && !path.startsWith("/api/auth/") && typeof window !== "undefined") {
       window.dispatchEvent(new Event(AUTH_EXPIRED));
     }
-    const text = await response.text();
-    // Backend trả {"detail": "..."} -> hiện nguyên văn câu thông báo cho người dùng
-    try {
-      const parsed = JSON.parse(text) as { detail?: unknown };
-      if (typeof parsed.detail === "string") throw new Error(parsed.detail);
-    } catch (err) {
-      if (err instanceof Error && !(err instanceof SyntaxError)) throw err;
-    }
-    throw new Error(`${response.status} ${text.slice(0, 200)}`);
+    if (response.status === 401) throw new Error(path === "/api/auth/login" ? "Mật khẩu chưa đúng. Vui lòng thử lại." : "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+    if (response.status === 403) throw new Error("Bạn không có quyền thực hiện thao tác này.");
+    if (response.status === 404) throw new Error("Không tìm thấy thông tin cần thiết.");
+    if (response.status === 409) throw new Error("Thông tin đã tồn tại hoặc đang được sử dụng.");
+    if (response.status === 422) throw new Error("Thông tin chưa hợp lệ. Vui lòng kiểm tra lại.");
+    if (response.status === 429) throw new Error("Bạn thao tác quá nhanh. Vui lòng thử lại sau.");
+    throw new Error("Hệ thống tạm thời chưa thực hiện được yêu cầu. Vui lòng thử lại.");
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -45,9 +43,13 @@ export const api = {
   login: (password: string) => request("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
   fallView: <T>(signal?: AbortSignal) => request<T>("/api/fall/view", { signal }),
-  fallAction: (command: string, enabled?: boolean) => request(`/api/fall/${command}`, {
+  fallAction: (command: string, enabled?: boolean, source?: "adb" | "droidcam") => request(`/api/fall/${command}${source ? `?source=${source}` : ""}`, {
     method: "POST", body: enabled === undefined ? undefined : JSON.stringify({ enabled }),
   }),
+  selectFallSource: (source: "adb" | "droidcam") =>
+    request("/api/fall/source", { method: "POST", body: JSON.stringify({ source }) }),
+  connectDroidCam: (host: string, port: number) =>
+    request("/api/fall/droidcam/connect", { method: "POST", body: JSON.stringify({ host, port }) }),
   live: () => request<LiveState>("/api/live"),
   setMode: (mode: SystemMode) =>
     request<LiveState>("/api/mode", { method: "POST", body: JSON.stringify({ mode }) }),

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Check } from "lucide-react";
 
-import { timeAgo } from "@/lib/format";
+import { displayEventMessage, isSampleEvent, timeAgo } from "@/lib/format";
 
 import { useDashboard } from "./DashboardProvider";
 
@@ -10,7 +10,7 @@ import { useDashboard } from "./DashboardProvider";
 export function FallAlertBanner() {
   const { activeFall, ackEvent } = useDashboard();
 
-  if (!activeFall) return null;
+  if (!activeFall || isSampleEvent(activeFall)) return null;
 
   return (
     <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 sm:mx-6 lg:mx-8">
@@ -20,7 +20,7 @@ export function FallAlertBanner() {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-rose-200">PHÁT HIỆN NGÃ</p>
         <p className="truncate text-xs text-rose-200/80">
-          {activeFall.message} · {timeAgo(activeFall.ts)}
+          {displayEventMessage(activeFall)} · {timeAgo(activeFall.ts)}
         </p>
       </div>
       <button

@@ -16,17 +16,14 @@ import { FallDetection } from "@/components/FallDetection";
 import { timeAgo } from "@/lib/format";
 
 export default function DashboardPage() {
-  const { summary, events, series, activity, loading, error } = useDashboard();
+  const { summary, events, series, activity, loading, error, refresh } = useDashboard();
 
   if (error) {
     return (
       <div className="card border-rose-500/30 bg-rose-500/5">
-        <p className="text-sm font-semibold text-rose-300">Không kết nối được backend</p>
-        <p className="muted mt-1">{error}</p>
-        <p className="muted mt-2">
-          Hãy chạy <code className="text-slate-300">uvicorn app.main:app --reload</code> trong thư mục
-          backend.
-        </p>
+        <p className="text-sm font-semibold text-rose-300">Tạm thời không thể kết nối hệ thống</p>
+        <p className="muted mt-1">Vui lòng kiểm tra kết nối mạng và thử lại sau ít phút.</p>
+        <button type="button" className="btn-ghost mt-3" onClick={() => void refresh()}>Thử kết nối lại</button>
       </div>
     );
   }
@@ -77,7 +74,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Thiết bị online"
+          label="Thiết bị đang kết nối"
           value={`${summary.devices_online}/${summary.devices_total}`}
           hint={`${summary.actuators_on} thiết bị đang bật`}
           icon={Wifi}
@@ -86,7 +83,7 @@ export default function DashboardPage() {
         <StatCard
           label="Lượt chuyển động (24h)"
           value={String(summary.motion_last_24h)}
-          hint="Cảm biến PIR"
+          hint="Phát hiện hoạt động trong nhà"
           icon={PersonStanding}
         />
         <StatCard

@@ -14,6 +14,8 @@ class FallRuntime:
         self.on_fall, self.on_camera = on_fall, on_camera
         self.factory, self.camera_factory = factory, camera_factory
         self.camera = self.model = self.config = None
+        self.droidcam_camera = self.droidcam_config = None
+        self.analysis_source = 'adb' 
         self.error = None
         self.enabled = False
         self.generation = 0
@@ -29,10 +31,23 @@ class FallRuntime:
 
     async def start(self):
         try:
-            from .cctv import CameraReader, CameraSettings
+            from .cctv import CameraReader, CameraSettings, parse_droidcam_url, setting
             from .telegram_client import is_configured
             self.config = CameraSettings.load()
             self.camera = (self.camera_factory or CameraReader)(self.config)
+            droid_url = setting('DROIDCAM_URL', '')
+            if droid_url:
+                try:
+                    droid_url = parse_droidcam_url(droid_url)
+                except ValueError:
+                    log.warning('DROIDCAM_URL is invalid; enter the LAN IP in dashboard.')
+                    droid_url = ''
+            self.droidcam_config = CameraSettings(
+                url=droid_url, name='DroidCam Wi-Fi', autostart=False,
+                threshold=self.config.threshold, confirmations=self.config.confirmations)
+            self.droidcam_camera = (self.camera_factory or CameraReader)(self.droidcam_config)
+            if droid_url and setting('DROIDCAM_AUTOSTART', '0').lower() in ('1', 'true', 'yes'):
+                self.droidcam_camera.start()
             self.telegram = 'configured' if is_configured() else 'not_configured'
             if is_configured():
                 self.telegram_detail = 'Telegram Gateway đã sẵn sàng.'
@@ -55,6 +70,8 @@ class FallRuntime:
         self.closing = True
         if self.camera:
             self.camera.stop()
+        if self.droidcam_camera:
+            self.droidcam_camera.stop()
         if self.tasks:
             await asyncio.gather(*self.tasks, return_exceptions=True)
         for job in self.jobs:
@@ -63,14 +80,58 @@ class FallRuntime:
             await asyncio.gather(*self.jobs, return_exceptions=True)
         if self.camera:
             await asyncio.to_thread(self.camera.close)
+        if self.droidcam_camera:
+            await asyncio.to_thread(self.droidcam_camera.close)
+
+    def source_camera(self, source):
+        if source == 'adb':
+            return self.camera
+        if source == 'droidcam':
+            return self.droidcam_camera
+        raise ValueError('Nguon camera khong hop le.')
+
+    def start_camera(self, source='adb'):
+        camera = self.source_camera(source)
+        if camera is None:
+            raise ValueError('Camera chua san sang.')
+        if source == 'droidcam' and not camera.snapshot()[0]['configured']:
+            raise ValueError('Nhap IP DroidCam va nhan Ket noi truoc.')
+        camera.start()
+
+    def connect_droidcam(self, host, port=4747):
+        from .cctv import droidcam_url, CameraSettings
+        url = droidcam_url(host, port)
+        self.droidcam_config = CameraSettings(
+            url=url, name='DroidCam Wi-Fi', autostart=True,
+            threshold=self.config.threshold, confirmations=self.config.confirmations)
+        if self.droidcam_camera is None:
+            raise ValueError('Camera DroidCam chua khoi tao.')
+        self.droidcam_camera.configure(self.droidcam_config)
+        if self.analysis_source == 'droidcam':
+            self.set_analysis(False)
+        return self.status()
+
+    def set_source(self, source):
+        camera = self.source_camera(source)
+        if camera is None or not camera.snapshot()[0]['configured']:
+            raise ValueError('Nguon camera chua duoc cau hinh.')
+        if source != self.analysis_source:
+            self.analysis_source = source
+            self.generation += 1
+            self.view = None
+        return self.status()
 
     def status(self):
-        status = self.camera.snapshot()[0] if self.camera else {
+        camera = self.source_camera(self.analysis_source)
+        status = camera.snapshot()[0] if camera else {
             'configured': False, 'name': 'Camera AI', 'enabled': False,
             'state': 'unavailable', 'sequence': 0, 'epoch': 0,
             'threshold': .8, 'confirmations': 3,
         }
-        return {**status, 'ready': self.model is not None, 'error': self.error,
+        cameras = {source: (reader.snapshot()[0] if reader else {'configured': False, 'enabled': False, 'state': 'unavailable', 'sequence': 0})
+                   for source, reader in [('adb', self.camera), ('droidcam', self.droidcam_camera)]}
+        return {**status, 'cameras': cameras, 'analysis_source': self.analysis_source,
+                'ready': self.model is not None, 'error': self.error,
                 'analysis_enabled': self.enabled, 'telegram': self.telegram,
                 'telegram_detail': self.telegram_detail,
                 'ai_device': getattr(self.model, 'device', None),
@@ -84,10 +145,12 @@ class FallRuntime:
             self.generation += 1
             self.view = None
 
-    def stop_camera(self):
-        if self.camera:
-            self.camera.stop()
-        self.set_analysis(False)
+    def stop_camera(self, source='adb'):
+        camera = self.source_camera(source)
+        if camera:
+            camera.stop()
+        if source == self.analysis_source:
+            self.set_analysis(False)
 
     def get_view(self):
         camera = self.status()
@@ -98,10 +161,11 @@ class FallRuntime:
         return {'camera': camera, 'view': ({**{k: v for k, v in view.items() if k != 'completed_at'},
                                          'age': time.monotonic() - view['completed_at']} if view else None)}
 
-    async def frame(self, sequence):
-        if not self.camera:
+    async def frame(self, sequence, source='adb'):
+        camera = self.source_camera(source)
+        if not camera:
             return None, 0
-        status, frame = self.camera.snapshot()
+        status, frame = camera.snapshot()
         if frame is None or sequence == status['sequence']:
             return None, status['sequence']
         def encode():
@@ -189,7 +253,10 @@ class FallRuntime:
         while not self.closing:
             await asyncio.sleep(.1)
             try:
-                status, frame = self.camera.snapshot()
+                camera = self.source_camera(self.analysis_source)
+                if camera is None:
+                    continue
+                status, frame = camera.snapshot()
                 now = time.monotonic()
                 if self.on_camera and now - last_heartbeat >= 5:
                     await self.on_camera(status)
@@ -219,8 +286,9 @@ class FallRuntime:
                                             getattr(self.model, 'score_sequences', None))
                     return result, jpeg.tobytes(), tracks
                 result, image, tracks = await asyncio.to_thread(infer)
-                latest, _ = self.camera.snapshot()
-                if (generation != self.generation or not self.enabled or self.closing
+                latest, _ = camera.snapshot()
+                if (camera is not self.source_camera(self.analysis_source) or
+                        generation != self.generation or not self.enabled or self.closing
                         or latest['epoch'] != status['epoch'] or latest['state'] != 'connected'):
                     continue
                 self.error = None
@@ -231,7 +299,7 @@ class FallRuntime:
                 for track in tracks:
                     if track['newAlert']:
                         incident = {'key': 'fall-' + uuid.uuid4().hex, 'person_id': track['id'],
-                                    'score': track['fall_score'], 'source': self.config.name,
+                                    'score': track['fall_score'], 'source': status['name'],
                                     'time': datetime.now(timezone.utc).isoformat()}
                         self._job(self._deliver(incident, image))
             except Exception:

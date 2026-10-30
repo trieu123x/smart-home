@@ -1,8 +1,10 @@
-"""USB ADB phone-camera capture for FallGuard via bundled scrcpy server."""
+"""Camera capture for FallGuard: ADB USB and local DroidCam MJPEG."""
 import os
 import re
 import threading
 import time
+import ipaddress
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 
 from .telegram_config import _settings
@@ -55,16 +57,48 @@ class CameraSettings:
                    threshold, confirmations)
 
 
+def droidcam_url(host: str, port: int = 4747) -> str:
+    """Accept only numeric, non-public IPv4 on the LAN (no DNS/redirect URLs)."""
+    try:
+        ip = ipaddress.IPv4Address(host.strip())
+    except (ipaddress.AddressValueError, ValueError):
+        raise ValueError('Nhap IPv4 noi bo cua dien thoai, vi du 192.168.1.20.') from None
+    networks = (ipaddress.IPv4Network('10.0.0.0/8'),
+                ipaddress.IPv4Network('172.16.0.0/12'),
+                ipaddress.IPv4Network('192.168.0.0/16'))
+    if not any(ip in network for network in networks):
+        raise ValueError('Chi cho phep IP LAN RFC1918 (10.x, 172.16-31.x, 192.168.x).')
+    if type(port) is not int or not 1024 <= port <= 65535:
+        raise ValueError('Port DroidCam phai tu 1024 den 65535.')
+    return f'http://{ip}:{port}/video'
+
+
+def parse_droidcam_url(value: str) -> str:
+    """Validate configured URL; runtime uses a fixed /video path."""
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme != 'http' or parsed.username or parsed.password or parsed.path not in ('', '/', '/video') or parsed.query or parsed.fragment:
+            raise ValueError()
+        return droidcam_url(parsed.hostname or '', parsed.port or 4747)
+    except (ValueError, TypeError):
+        raise ValueError('DROIDCAM_URL phai co dang http://192.168.1.20:4747/video') from None
+
+
 def open_camera(url):
-    """Android: USB ADB -> raw H264. iPhone/DroidCam: MJPEG qua WiFi (http)."""
+    """Open ADB H264 or local DroidCam MJPEG. FFmpeg read/open timeouts avoid hanging."""
     if url.startswith('adb:'):
         from .adb_camera import AdbH264Capture
         return AdbH264Capture(url)
+    safe_url = parse_droidcam_url(url)
     import cv2
-    # Timeout de khong bi treo khi dien thoai tat app / mat WiFi.
-    return cv2.VideoCapture(url, cv2.CAP_FFMPEG, [
-        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000,
-        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000])
+    cap = cv2.VideoCapture(safe_url, cv2.CAP_FFMPEG, [
+        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 4000,
+        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 4000,
+    ])
+    if not cap.isOpened():
+        cap.release()
+        raise RuntimeError('DroidCam khong ket noi duoc. Kiem tra IP, port va Wi-Fi.')
+    return cap
 
 class CameraReader:
     """Only this thread owns VideoCapture; callers never release it during read()."""
@@ -92,6 +126,16 @@ class CameraReader:
             self._enabled = True
             self._epoch += 1
             self._state = 'connecting'
+        self._wake.set()
+
+    def configure(self, config, start=True):
+        """Change camera safely; old reader exits on epoch change."""
+        with self._lock:
+            self.config = config
+            self._enabled = start
+            self._epoch += 1
+            self._frame = self._captured_at = None
+            self._state = 'connecting' if start else 'stopped'
         self._wake.set()
 
     def stop(self):

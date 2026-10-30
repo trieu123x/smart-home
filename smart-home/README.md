@@ -1,3 +1,17 @@
+# Smart Home - Hybrid Windows (recommended)
+
+**Default deployment:** Backend FastAPI + AI / CUDA + MQTT + SQLite + Web Push runs in `backend/.venv` on Windows; Docker runs **only the Next.js dashboard**. ngrok tunnels **only port 3000**. This replaces the old all-in-Docker instructions below.
+
+**First time:** `SETUP_VENV.bat` (or `SETUP_VENV.bat --cuda` for NVIDIA / CUDA 12.8), configure `backend/.env`, copy AI model/ADB assets, migrate Docker SQLite if necessary, then `START_SMART_HOME.bat`.
+
+**Next time:** Double-click `START_NGROK.bat` to start backend + Docker dashboard + public HTTPS. Rebuild frontend only with `BUILD_FRONTEND.bat`.
+
+Full instructions: [docs/HYBRID_WINDOWS.md](docs/HYBRID_WINDOWS.md).
+
+> The legacy `START_CAMERA_DOCKER.bat` is **not needed** in this hybrid mode. Connect the camera to Windows ADB directly.
+
+---
+
 # Smart Home Dashboard (đồ án IoT với ESP32)
 
 ## Docker
@@ -226,3 +240,12 @@ X-Device-Key: esp32-secret-key
 - Đăng nhập cho người nhà (JWT) và phân quyền xem/điều khiển.
 - Gửi thông báo Telegram/Zalo khi phát hiện ngã.
 - Lưu lịch sử dài hạn sang PostgreSQL/TimescaleDB thay cho SQLite.
+
+### Push tren Topbar, PWA va camera DroidCam (Hybrid Windows)
+
+Xem [docs/UPDATE_PUSH_PWA_DROIDCAM.md](docs/UPDATE_PUSH_PWA_DROIDCAM.md) de biet cach cap nhat dashboard, ket noi DroidCam qua Wi-Fi, chon camera phan tich AI va cai web len man hinh chinh Android/iPhone.
+
+
+### Popup setup thong bao & PWA (Android / iPhone)
+
+Chi tiet: [`docs/POPUP_CAI_DAT_THONG_BAO_PWA.md`](docs/POPUP_CAI_DAT_THONG_BAO_PWA.md).
